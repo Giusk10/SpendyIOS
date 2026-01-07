@@ -30,24 +30,20 @@ struct DashboardView: View {
                     .padding(.vertical, 20)
                     .background(Color(UIColor.systemBackground))
                     
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            ForEach(expenses) { expense in
-                                ExpenseCard(expense: expense)
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            deleteExpense(expense)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
-                            }
+                    List {
+                        ForEach(expenses) { expense in
+                            ExpenseCard(expense: expense)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
-                        .padding()
+                        .onDelete(perform: deleteItems)
                     }
+                    .listStyle(.plain)
                 }
             }
             .navigationTitle("Dashboard")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     NavigationLink(destination: UploadView()) {
@@ -68,9 +64,11 @@ struct DashboardView: View {
         }
     }
 
-    private func deleteExpense(_ expense: Expense) {
+    private func deleteItems(offsets: IndexSet) {
         withAnimation {
-            modelContext.delete(expense)
+            for index in offsets {
+                modelContext.delete(expenses[index])
+            }
         }
     }
 }
@@ -79,41 +77,47 @@ struct ExpenseCard: View {
     let expense: Expense
     
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(expense.userDescription)
-                    .font(.headline)
-                    .lineLimit(1)
-                
-                if let date = expense.startedDate {
-                    Text(date.formattedDate())
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+        NavigationLink(destination: ExpenseDetailView(expense: expense)) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    // Row 1: Description
+                    Text(expense.userDescription)
+                        .font(.headline)
+                        .lineLimit(2)
+                        .foregroundColor(.primary)
+                    
+                    // Row 2: Date
+                    if let date = expense.startedDate {
+                        Text(date.formattedDate())
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // Row 3: Category
+                    if let category = expense.category {
+                        Text(category)
+                            .font(.caption2)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.1))
+                            .foregroundColor(.blue)
+                            .cornerRadius(8)
+                    }
                 }
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 4) {
+                
+                Spacer()
+                
+                // Right Side: Amount
                 Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
                     .font(.headline)
-                    .foregroundColor(expense.amount >= 0 ? .green : .primary)
-                
-                if let category = expense.category {
-                    Text(category)
-                        .font(.caption2)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundColor(.blue)
-                        .cornerRadius(8)
-                }
+                    .foregroundColor(expense.amount >= 0 ? .green : .red)
             }
+            .padding()
+            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
         }
-        .padding()
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .buttonStyle(PlainButtonStyle()) // Keeps the custom styling without default link blue
     }
 }
 
