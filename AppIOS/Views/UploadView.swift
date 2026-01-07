@@ -34,8 +34,8 @@ struct UploadView: View {
                 if selectedFile.startAccessingSecurityScopedResource() {
                     defer { selectedFile.stopAccessingSecurityScopedResource() }
                     
-                    try ExpenseService.shared.importCSV(url: selectedFile)
-                    message = "Successfully imported: \(selectedFile.lastPathComponent)"
+                    let count = try ExpenseService.shared.importCSV(url: selectedFile)
+                    message = "Successfully imported: \(count) expenses from \(selectedFile.lastPathComponent)"
                 } else {
                     message = "Permission denied to access file."
                 }
