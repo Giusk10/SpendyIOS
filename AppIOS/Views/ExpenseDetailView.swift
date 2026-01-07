@@ -56,9 +56,24 @@ struct ExpenseDetailView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                
+                Section {
+                    Button(action: deleteExpense) {
+                        Text("Delete Expense")
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                }
             }
         }
         .navigationTitle("Expense Details")
         .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    @Environment(\.dismiss) private var dismiss
+    
+    private func deleteExpense() {
+        ExpenseService.shared.deleteExpense(expense)
+        dismiss()
     }
 }

@@ -41,6 +41,11 @@ struct DashboardView: View {
                         .onDelete(perform: deleteItems)
                     }
                     .listStyle(.plain)
+                    .refreshable {
+                        if let context = modelContext {
+                            await SyncWorker.shared.sync(context: context)
+                        }
+                    }
                 }
             }
             .navigationTitle("Dashboard")
@@ -78,6 +83,8 @@ struct DashboardView: View {
             }
             .onAppear {
                  ExpenseService.shared.setModelContext(modelContext)
+                 // Trigger initial fetch/sync
+                 _ = try? ExpenseService.shared.fetchExpenses()
             }
         }
     }
@@ -85,14 +92,14 @@ struct DashboardView: View {
     private func deleteItems(offsets: IndexSet) {
         withAnimation {
             for index in offsets {
-                modelContext.delete(expenses[index])
+                ExpenseService.shared.deleteExpense(expenses[index])
             }
         }
     }
     
     private func deleteExpense(_ expense: Expense) {
         withAnimation {
-            modelContext.delete(expense)
+             ExpenseService.shared.deleteExpense(expense)
         }
     }
     

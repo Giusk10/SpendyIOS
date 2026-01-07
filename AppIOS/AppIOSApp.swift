@@ -3,6 +3,8 @@ import SwiftData
 
 @main
 struct AppIOSApp: App {
+    @StateObject private var authManager = AuthManager.shared
+    
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Expense.self,
@@ -18,7 +20,16 @@ struct AppIOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if authManager.isAuthenticated {
+                ContentView()
+                    .onAppear {
+                        // Pass model context to Service
+                        let context = sharedModelContainer.mainContext
+                        ExpenseService.shared.setModelContext(context)
+                    }
+            } else {
+                AuthView()
+            }
         }
         .modelContainer(sharedModelContainer)
     }

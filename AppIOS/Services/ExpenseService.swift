@@ -1,110 +1,103 @@
 import Foundation
-
-import Foundation
 import SwiftData
 
 @MainActor
 class ExpenseService {
     static let shared = ExpenseService()
     var modelContext: ModelContext?
-
-    private init() {}
+    
+    private init() {
+        // Listen for connectivity restored to trigger sync
+        NotificationCenter.default.addObserver(self, selector: #selector(triggerSync), name: .connectivityRestored, object: nil)
+    }
     
     func setModelContext(_ context: ModelContext) {
         self.modelContext = context
     }
     
+    @objc func triggerSync() {
+        guard let context = modelContext else { return }
+        Task {
+            await SyncWorker.shared.sync(context: context)
+        }
+    }
+    
     func fetchExpenses() throws -> [Expense] {
         guard let context = modelContext else { return [] }
-        let descriptor = FetchDescriptor<Expense>(sortBy: [SortDescriptor(\.startedDate, order: .reverse)])
+        
+        // Trigger sync in background logic
+        Task {
+            await SyncWorker.shared.sync(context: context)
+        }
+        
+        // Return local data immediately (Offline-First)
+        // Filter out those marked for deletion if we want to hide them immediately?
+        // Or show them? Usually we hide them.
+        let descriptor = FetchDescriptor<Expense>(
+            predicate: #Predicate<Expense> { $0.syncStatus != 2 },
+            sortBy: [SortDescriptor(\.startedDate, order: .reverse)]
+        )
         return try context.fetch(descriptor)
     }
     
     func addExpense(_ expense: Expense) {
-        modelContext?.insert(expense)
+        guard let context = modelContext else { return }
+        expense.syncStatus = 1 // Pending Add
+        context.insert(expense)
+        try? context.save()
+        
+        Task {
+            await SyncWorker.shared.sync(context: context)
+        }
     }
     
     func deleteExpense(_ expense: Expense) {
-        modelContext?.delete(expense)
-    }
-    
-    func importCSV(url: URL) throws -> Int {
-        guard let context = modelContext else { return 0 }
+        guard let context = modelContext else { return }
         
-        let data = try String(contentsOf: url, encoding: .utf8)
-        var rows = data.components(separatedBy: "\n")
-        
-        // Filter out empty lines
-        rows = rows.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        
-        guard let headerRow = rows.first else { return 0 }
-        let headers = headerRow.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\"", with: "") }
-        
-        // Find indices
-        let typeIndex = headers.firstIndex(of: "Tipo") ?? -1
-        let productIndex = headers.firstIndex(of: "Prodotto") ?? -1
-        let startedDateIndex = headers.firstIndex(of: "Data di inizio") ?? -1
-        let completedDateIndex = headers.firstIndex(of: "Data di completamento") ?? -1
-        let descriptionIndex = headers.firstIndex(of: "Descrizione") ?? -1
-        let amountIndex = headers.firstIndex(of: "Importo") ?? -1
-        let currencyIndex = headers.firstIndex(of: "Valuta") ?? -1
-        let stateIndex = headers.firstIndex(of: "State") ?? -1
-        
-        var count = 0
-        
-        for (index, row) in rows.enumerated() {
-            if index == 0 { continue }
-            
-            // Handle comma inside quotes if necessary, simpler split for now assuming no commas in fields based on sample
-            let columns = row.components(separatedBy: ",")
-            let cleanColumns = columns.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\"", with: "") }
-            
-            // Ensure we have enough columns for the max index we need
-            guard cleanColumns.count > max(typeIndex, productIndex, startedDateIndex, descriptionIndex, amountIndex) else { continue }
-            
-            let amountString = (amountIndex >= 0) ? cleanColumns[amountIndex] : "0"
-            if let amount = Double(amountString) {
-                // Determine category: Use CSV value if present, otherwise classify based on description
-                var category = (stateIndex >= 0) ? cleanColumns[stateIndex] : nil // Previous code used stateIndex for category?? No, wait.
-                // The previous code had: `state: (stateIndex >= 0) ? cleanColumns[stateIndex] : nil`
-                // And `category: (categoryIndex >= ...)` which was missing.
-                // Let's look at the mapping logic I wrote in Step 112:
-                // `category: (cleanColumns.count > 3 ? cleanColumns[3] : nil)` was the INITIAL logic.
-                // Then in Step 112 I changed it to header based but I didn't see `categoryIndex`.
-                // Looking at the file content in Step 107, there IS NO "Category" column.
-                // So we MUST use the classifier.
-                
-                let description = (descriptionIndex >= 0) ? cleanColumns[descriptionIndex] : "Imported"
-                let classifiedCategory = ExpenseClassifier.classify(description)
-                
-                let expense = Expense(
-                    type: (typeIndex >= 0) ? cleanColumns[typeIndex] : "",
-                    product: (productIndex >= 0) ? cleanColumns[productIndex] : "",
-                    startedDate: (startedDateIndex >= 0) ? cleanColumns[startedDateIndex] : nil,
-                    completedDate: (completedDateIndex >= 0) ? cleanColumns[completedDateIndex] : nil,
-                    description: description,
-                    amount: amount,
-                    currency: (currencyIndex >= 0) ? cleanColumns[currencyIndex] : nil,
-                    state: (stateIndex >= 0) ? cleanColumns[stateIndex] : nil,
-                    category: classifiedCategory
-                )
-                context.insert(expense)
-                count += 1
-            }
+        if expense.remoteId == nil {
+            // If not on server yet, just delete locally
+            context.delete(expense)
+        } else {
+            expense.syncStatus = 2 // Pending Delete
         }
         
         try? context.save()
-        return count
+        Task {
+            await SyncWorker.shared.sync(context: context)
+        }
+    }
+    
+    // Updated: Just queues the file
+    func importCSV(url: URL) throws {
+        SyncWorker.shared.queueCSV(url: url)
     }
     
     func deleteAllExpenses() throws {
         guard let context = modelContext else { return }
-        try context.delete(model: Expense.self)
+        // Logic for delete all? Maybe iterate and mark all as deleted?
+        // Or call specific endpoint if available?
+        // Spec says: DELETE /Expense/rest/expense/deleteExpense (Single)
+        // Implementing bulk delete via single deletes or just locally clearing for now?
+        // Given complexity, let's just mark visible ones as deleted.
+        let all = try fetchExpenses()
+        for expense in all {
+            deleteExpense(expense) // This handles syncStatus
+        }
     }
     
-    // Kept for compatibility but logic is now local filtering
-    func fetchExpensesByDate(start: String, end: String) throws -> [Expense] {
-        let all = try fetchExpenses()
-        return all.filter { ($0.startedDate ?? "") >= start && ($0.startedDate ?? "") <= end }
+    // Stats logic - fetch from backend if possible, or calculate locally?
+    // Spec: POST /Expense/rest/expense/getMonthlyAmountOfYear
+    // DashboardView: "Se possibile, integra la chiamata statistiche per i grafici."
+    // We can add a method to get stats.
+    
+    func getMonthlyStats(year: String) async -> [Double]? {
+        // This is a direct API call, usually we don't sync stats?
+        // If offline, maybe return nil or local calculation?
+        // Let's implement local calculation as fallback, but try network first.
+        
+        if let response = try? await NetworkManager.shared.performRequest(endpoint: "/Expense/rest/expense/getMonthlyAmountOfYear", method: "POST", body: JSONEncoder().encode(["year": year]), responseType: [Double].self) {
+            return response
+        }
+        return nil
     }
 }
