@@ -49,8 +49,7 @@ struct AddExpenseView: View {
                                     Text($0)
                                 }
                             }
-                            .voiceOverFocusArea(Int?.none)
-                            .pickerStyle(.menu)
+                            .pickerStyle(MenuPickerStyle())
                             .padding()
                             .frame(maxWidth: .infinity)
                             .background(Color.spendyBackground)
