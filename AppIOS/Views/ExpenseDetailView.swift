@@ -2,8 +2,8 @@ import SwiftUI
 
 struct ExpenseDetailView: View {
     let expense: Expense
+    @Environment(\.dismiss) private var dismiss
     
-    var body: some View {
     var body: some View {
         ZStack {
             Color.spendyBackground
@@ -27,7 +27,7 @@ struct ExpenseDetailView: View {
                         
                         // Details Grid
                         VStack(spacing: 16) {
-                            DetailRow(label: "Data", value: expense.startedDate ?? "-")
+                            DetailRow(label: "Data", value: expense.startedDate?.formattedDate() ?? "-")
                             
                             if let category = expense.category {
                                 HStack {
@@ -75,28 +75,26 @@ struct ExpenseDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
     
-    struct DetailRow: View {
-        let label: String
-        let value: String
-        
-        var body: some View {
-            HStack {
-                Text(label)
-                    .foregroundColor(.spendySecondaryText)
-                Spacer()
-                Text(value)
-                    .fontWeight(.medium)
-                    .foregroundColor(.spendyText)
-            }
-        }
-    }
-    
-    @Environment(\.dismiss) private var dismiss
-    
     private func deleteExpense() {
         Task {
             try? await ExpenseService.shared.deleteExpense(expense)
             dismiss()
+        }
+    }
+}
+
+struct DetailRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .foregroundColor(.spendySecondaryText)
+            Spacer()
+            Text(value)
+                .fontWeight(.medium)
+                .foregroundColor(.spendyText)
         }
     }
 }
