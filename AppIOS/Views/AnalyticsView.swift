@@ -34,19 +34,28 @@ struct AnalyticsView: View {
                                         .foregroundColor(.spendySecondaryText)
                                         .fontWeight(.medium)
                                     
-                                    HStack {
-                                        Text(selectedYear)
-                                            .font(.body)
-                                            .foregroundColor(.spendyText)
-                                        Spacer()
-                                        Image(systemName: "chevron.down")
-                                            .foregroundColor(.spendySecondaryText)
-                                            .font(.caption)
+                                    Menu {
+                                        ForEach(2020...2030, id: \.self) { year in
+                                            Button(String(year)) {
+                                                selectedYear = String(year)
+                                                viewModel.updateFilters(year: selectedYear)
+                                            }
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Text(selectedYear)
+                                                .font(.body)
+                                                .foregroundColor(.spendyText)
+                                            Spacer()
+                                            Image(systemName: "chevron.down")
+                                                .foregroundColor(.spendySecondaryText)
+                                                .font(.caption)
+                                        }
+                                        .padding()
+                                        .background(Color.white)
+                                        .cornerRadius(12)
+                                        .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
                                     }
-                                    .padding()
-                                    .background(Color.white)
-                                    .cornerRadius(12)
-                                    .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
                                 }
                                 .padding(.horizontal)
                                 
@@ -138,7 +147,7 @@ struct AnalyticsView: View {
                             .padding(.horizontal)
                             
                             // 4. Categories Section
-                            VStack(alignment: .leading, spacing: 16) {
+                            LazyVStack(alignment: .leading, spacing: 16) {
                                 Text("Categorie più rilevanti")
                                     .font(.headline)
                                     .foregroundColor(.spendyText)
@@ -181,6 +190,7 @@ struct AnalyticsView: View {
             .background(Color.spendyBackground) // Ensure Nav stack bg
             .onAppear {
                 viewModel.loadData()
+                viewModel.fetchMonthlyStats(year: selectedYear)
             }
             .refreshable {
                 viewModel.loadData()

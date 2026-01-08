@@ -74,71 +74,47 @@ class AnalyticsViewModel: ObservableObject {
         // 3. Highest
         self.highestExpense = outflows.map { abs($0.amount) }.max() ?? 0.0
         
-        // 4. Monthly Trend
-        // Group by Month-Year
-        let calendar = Calendar.current
+        // 4. Monthly Trend - Fetch from Server
+        // We will fetch this separately or we can trigger it here if year is known.
+        // For now, removing manual aggregation as we will use fetchMonthlyStats
+    }
+    
+    func fetchMonthlyStats(year: String) {
+        Task {
+            if let amounts = await ExpenseService.shared.getMonthlyStats(year: year) {
+                await MainActor.run {
+                    self.monthlyData = processMonthlyStats(amounts, year: year)
+                }
+            }
+        }
+    }
+    
+    private func processMonthlyStats(_ amounts: [Double], year: String) -> [MonthlyMetric] {
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd" // Input format
-        // We might need to handle HH:mm:ss too
+        dateFormatter.dateFormat = "MMM"
+        let calendar = Calendar.current
+        var metrics: [MonthlyMetric] = []
         
-        var monthlyMap: [String: Double] = [:]
-        var monthlyDateMap: [String: Date] = [:]
-        
-        for expense in outflows {
-            // Try parse date
-            var date: Date? = nil
+        for (index, amount) in amounts.enumerated() {
+            // Create a date for this month/year for correct sorting and label
+            var components = DateComponents()
+            components.year = Int(year)
+            components.month = index + 1 // 1-based
+            components.day = 1
             
-            // Try multiple formats
-            let formats = [
-                "yyyy-MM-dd HH:mm:ss",
-                "yyyy-MM-dd",
-                "dd/MM/yyyy",
-                "dd-MM-yyyy",
-                "yyyy/MM/dd"
-            ]
-            
-            if let dStr = expense.startedDate {
-                for format in formats {
-                    dateFormatter.dateFormat = format
-                    if let d = dateFormatter.date(from: dStr) {
-                        date = d
-                        break
-                    }
-                }
-            }
-            
-            if let d = date {
-                // Key: "Jan", "Feb" etc. But we need correct order. using First day of month date as key helper
-                let components = calendar.dateComponents([.year, .month], from: d)
-                if let monthDate = calendar.date(from: components) {
-                     let key = ISO8601DateFormatter().string(from: monthDate)
-                     monthlyMap[key, default: 0] += abs(expense.amount)
-                     monthlyDateMap[key] = monthDate
-                }
+            if let date = calendar.date(from: components) {
+                let monthName = dateFormatter.string(from: date)
+                // Filter out zero months if desired, or keep them for the chart continuity
+                // Keeping them is usually better for a "Trend" line
+                metrics.append(MonthlyMetric(month: monthName, amount: amount, date: date))
             }
         }
         
-        // Fill gaps? Optional. For now let's just show what we have or sorted.
-        let sortedKeys = monthlyMap.keys.sorted()
-        self.monthlyData = sortedKeys.compactMap { key -> MonthlyMetric? in
-            guard let amount = monthlyMap[key], let date = monthlyDateMap[key] else { return nil }
-            // Format month name
-            let f = DateFormatter()
-            f.dateFormat = "MMM"
-            return MonthlyMetric(month: f.string(from: date), amount: amount, date: date)
-        }.sorted(by: { $0.date < $1.date })
-        
-        
-        // 5. Categories
-        var categoryMap: [String: (Double, Int)] = [:]
-        for expense in outflows {
-            let cat = expense.category ?? "Uncategorized"
-            let existing = categoryMap[cat] ?? (0.0, 0)
-            categoryMap[cat] = (existing.0 + abs(expense.amount), existing.1 + 1)
-        }
-        
-        self.topCategories = categoryMap.map { key, value in
-            CategoryMetric(name: key, amount: value.0, count: value.1)
-        }.sorted(by: { $0.amount > $1.amount })
+        return metrics
+    }
+    
+    func updateFilters(year: String) {
+        fetchMonthlyStats(year: year)
+        // Future: Filter expenses list by year if needed, currently we just load all.
     }
 }
