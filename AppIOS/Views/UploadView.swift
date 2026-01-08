@@ -6,22 +6,60 @@ struct UploadView: View {
     @State private var message: String = ""
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Import Expenses")
-                .font(.title)
+        ZStack {
+            Color.spendyBackground
+                .ignoresSafeArea()
             
-            Button("Select CSV File") {
-                isImporting = true
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 8) {
+                    Image(systemName: "arrow.up.doc.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.spendyPrimary)
+                    
+                    Text("Importa Spese")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundColor(.spendyText)
+                    
+                    Text("Carica il tuo file CSV per analizzare le tue spese")
+                        .font(.body)
+                        .foregroundColor(.spendySecondaryText)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+                .padding(.top, 40)
+                
+                // Action Area
+                VStack(spacing: 20) {
+                    Button(action: {
+                        isImporting = true
+                    }) {
+                        HStack {
+                            Image(systemName: "doc.text.fill")
+                            Text("Seleziona file CSV")
+                        }
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.spendyPrimary)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    
+                    if !message.isEmpty {
+                        Text(message)
+                            .foregroundColor(message.contains("successful") ? .spendyGreen : .spendyRed)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                    }
+                }
+                .padding(.horizontal, 24)
+                
+                Spacer()
             }
-            .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(10)
-            
-            Text(message)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-                .padding()
         }
         .fileImporter(
             isPresented: $isImporting,
@@ -39,29 +77,30 @@ struct UploadView: View {
                         let data = try Data(contentsOf: selectedFile)
                         let fileName = selectedFile.lastPathComponent
                         
-                        message = "Uploading..."
+                        message = "Caricamento in corso..."
                         Task {
                             do {
                                 let success = try await ExpenseService.shared.importCSV(data: data, fileName: fileName)
                                 await MainActor.run {
-                                    message = success ? "Upload successful!" : "Upload failed."
+                                    message = success ? "Upload completato con successo!" : "Upload fallito."
                                 }
                             } catch {
                                 await MainActor.run {
-                                    message = "Error: \(error.localizedDescription)"
+                                    message = "Errore: \(error.localizedDescription)"
                                 }
                             }
                         }
                     } catch {
-                         message = "Failed to access file data: \(error.localizedDescription)"
+                         message = "Impossibile accedere ai dati del file: \(error.localizedDescription)"
                     }
                 } else {
-                    message = "Permission denied to access file."
+                    message = "Permesso negato per accedere al file."
                 }
             } catch {
-                message = "Error: \(error.localizedDescription)"
+                message = "Errore: \(error.localizedDescription)"
             }
         }
-        .navigationTitle("Import")
+        .navigationTitle("Importa")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

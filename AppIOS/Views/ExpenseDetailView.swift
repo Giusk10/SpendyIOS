@@ -4,70 +4,91 @@ struct ExpenseDetailView: View {
     let expense: Expense
     
     var body: some View {
-        Form {
-            Section(header: Text("Details")) {
-                HStack {
-                    Text("Description")
-                    Spacer()
-                    Text(expense.userDescription)
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Text("Amount")
-                    Spacer()
-                    Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
-                        .foregroundColor(expense.amount >= 0 ? .green : .red)
-                        .bold()
-                }
-                
-                HStack {
-                    Text("Date")
-                    Spacer()
-                    if let date = expense.startedDate {
-                        Text(date)
-                            .foregroundColor(.secondary)
+    var body: some View {
+        ZStack {
+            Color.spendyBackground
+                .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(spacing: 20) {
+                        // Header info
+                        Text(expense.userDescription)
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(.spendyText)
+                            .multilineTextAlignment(.center)
+                        
+                        Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
+                            .font(.system(size: 40, weight: .bold, design: .rounded))
+                            .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
+                        
+                        Divider()
+                        
+                        // Details Grid
+                        VStack(spacing: 16) {
+                            DetailRow(label: "Data", value: expense.startedDate ?? "-")
+                            
+                            if let category = expense.category {
+                                HStack {
+                                    Text("Categoria")
+                                        .foregroundColor(.spendySecondaryText)
+                                    Spacer()
+                                    Text(category)
+                                        .fontWeight(.medium)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(Color.spendyPrimary.opacity(0.1))
+                                        .foregroundColor(.spendyPrimary)
+                                        .cornerRadius(8)
+                                }
+                            }
+                            
+                            DetailRow(label: "Tipo", value: expense.type)
+                            if !expense.product.isEmpty {
+                                DetailRow(label: "Prodotto", value: expense.product)
+                            }
+                        }
                     }
-                }
-                
-                HStack {
-                    Text("Category")
-                    Spacer()
-                    if let category = expense.category {
-                        Text(category)
-                            .padding(4)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(4)
-                    }
-                }
-                
-                HStack {
-                    Text("Type")
-                    Spacer()
-                    Text(expense.type)
-                        .foregroundColor(.secondary)
-                }
-                
-                if !expense.product.isEmpty {
-                    HStack {
-                        Text("Product")
-                        Spacer()
-                        Text(expense.product)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Section {
+                    .padding(24)
+                    .background(Color.white)
+                    .cornerRadius(20)
+                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+                    
                     Button(action: deleteExpense) {
-                        Text("Delete Expense")
-                            .foregroundColor(.red)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("Elimina Spesa")
+                        }
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.spendyRed)
+                        .cornerRadius(12)
+                        .shadow(color: Color.spendyRed.opacity(0.3), radius: 5, x: 0, y: 3)
                     }
                 }
+                .padding()
             }
         }
-        .navigationTitle("Expense Details")
+        .navigationTitle("Dettaglio")
         .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    struct DetailRow: View {
+        let label: String
+        let value: String
+        
+        var body: some View {
+            HStack {
+                Text(label)
+                    .foregroundColor(.spendySecondaryText)
+                Spacer()
+                Text(value)
+                    .fontWeight(.medium)
+                    .foregroundColor(.spendyText)
+            }
+        }
     }
     
     @Environment(\.dismiss) private var dismiss

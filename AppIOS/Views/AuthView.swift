@@ -53,6 +53,7 @@ struct AuthView: View {
                                             .foregroundColor(.spendyText)
                                         
                                         TextField(isLoginMode ? "es. giulia.rossi" : "Username", text: $username)
+                                            .foregroundColor(.spendyText)
                                             .padding()
                                             .background(Color.spendyBackground)
                                             .cornerRadius(8)
@@ -70,6 +71,7 @@ struct AuthView: View {
                                             .foregroundColor(.spendyText)
                                         
                                         SecureField("La tua password", text: $password)
+                                            .foregroundColor(.spendyText)
                                             .padding()
                                             .background(Color.spendyBackground)
                                             .cornerRadius(8)
@@ -87,7 +89,8 @@ struct AuthView: View {
                                                 .foregroundColor(.spendyText)
                                             
                                             TextField("Email", text: $email)
-                                             .padding()
+                                                .foregroundColor(.spendyText)
+                                                .padding()
                                                 .background(Color.spendyBackground)
                                                 .cornerRadius(8)
                                                 .overlay(
@@ -106,6 +109,7 @@ struct AuthView: View {
                                                     .foregroundColor(.spendyText)
                                                 
                                                 TextField("Nome", text: $name)
+                                                    .foregroundColor(.spendyText)
                                                     .padding()
                                                     .background(Color.spendyBackground)
                                                     .cornerRadius(8)
@@ -122,6 +126,7 @@ struct AuthView: View {
                                                     .foregroundColor(.spendyText)
                                                 
                                                 TextField("Cognome", text: $surname)
+                                                    .foregroundColor(.spendyText)
                                                     .padding()
                                                     .background(Color.spendyBackground)
                                                     .cornerRadius(8)

@@ -14,41 +14,91 @@ struct AddExpenseView: View {
     let categories = ["General", "Food", "Transport", "Shopping", "Entertainment", "Bills", "Health"]
 
     var body: some View {
-        Form {
-            Section(header: Text("Details")) {
-                TextField("Description", text: $description)
-                
-                TextField("Amount", value: $amount, format: .currency(code: "EUR"))
-                    .keyboardType(.decimalPad)
-                
-                Picker("Category", selection: $category) {
-                    ForEach(categories, id: \.self) {
-                        Text($0)
+        ZStack {
+            Color.spendyBackground
+                .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header Card
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Dettagli Spesa")
+                            .font(.headline)
+                            .foregroundColor(.spendyText)
+                        
+                        TextField("Descrizione", text: $description)
+                            .foregroundColor(.spendyText)
+                            .padding()
+                            .background(Color.spendyBackground)
+                            .cornerRadius(8)
+                        
+                        TextField("Importo", value: $amount, format: .currency(code: "EUR"))
+                            .foregroundColor(.spendyText)
+                            .keyboardType(.decimalPad)
+                            .padding()
+                            .background(Color.spendyBackground)
+                            .cornerRadius(8)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Categoria")
+                                .font(.subheadline)
+                                .foregroundColor(.spendySecondaryText)
+                            
+                            Picker("Categoria", selection: $category) {
+                                ForEach(categories, id: \.self) {
+                                    Text($0)
+                                }
+                            }
+                            .voiceOverFocusArea(Int?.none)
+                            .pickerStyle(.menu)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.spendyBackground)
+                            .cornerRadius(8)
+                        }
+                    }
+                    .padding(20)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                    
+                    // Date Card
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Data")
+                            .font(.headline)
+                            .foregroundColor(.spendyText)
+                        
+                        DatePicker("Seleziona Data", selection: $date, displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                            .accentColor(.spendyPrimary)
+                    }
+                    .padding(20)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                    
+                    if let error = errorMessage {
+                         Text(error)
+                            .foregroundColor(.spendyRed)
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(8)
                     }
                 }
-            }
-            
-            Section(header: Text("Date")) {
-                DatePicker("Date", selection: $date, displayedComponents: .date)
-            }
-            
-            if let error = errorMessage {
-                Section {
-                    Text(error)
-                        .foregroundColor(.red)
-                }
+                .padding()
             }
         }
-        .navigationTitle("New Expense")
-        .disabled(isLoading)
+        .navigationTitle("Nuova Spesa")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 if isLoading {
                     ProgressView()
                 } else {
-                    Button("Save") {
+                    Button("Salva") {
                         saveExpense()
                     }
+                    .foregroundColor(.spendyPrimary)
                     .disabled(description.isEmpty || amount == 0)
                 }
             }
