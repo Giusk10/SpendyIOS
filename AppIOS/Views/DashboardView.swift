@@ -46,8 +46,14 @@ struct DashboardView: View {
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
                                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                        }
-                        .onDelete(perform: deleteItems)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        viewModel.deleteExpense(expense)
+                                    } label: {
+                                        Label("Elimina", systemImage: "trash")
+                                    }
+                                    .tint(.spendyRed)
+                                }
                     }
                     .listStyle(.plain)
                     .refreshable {
@@ -55,7 +61,9 @@ struct DashboardView: View {
                     }
                 }
             }
+            }
             .navigationTitle("Spese")
+            .accentColor(.spendyText) // Darken back buttons and navigation items
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

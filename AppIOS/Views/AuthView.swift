@@ -46,94 +46,134 @@ struct AuthView: View {
                             // Form Fields
                             VStack(alignment: .leading, spacing: 16) {
                                 Group {
+                                    // Username Field
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text(isLoginMode ? "Username o email" : "Username")
                                             .font(.subheadline)
                                             .fontWeight(.semibold)
                                             .foregroundColor(.spendyText)
                                         
-                                        TextField(isLoginMode ? "es. giulia.rossi" : "Username", text: $username)
-                                            .foregroundColor(.spendyText)
-                                            .padding()
-                                            .background(Color.spendySecondaryText)
-                                            .cornerRadius(8)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                            )
-                                            .autocapitalization(.none)
+                                        ZStack(alignment: .leading) {
+                                            if username.isEmpty {
+                                                Text(isLoginMode ? "es. giulia.rossi" : "Username")
+                                                    .foregroundColor(.spendyText.opacity(0.6)) // Darker placeholder
+                                                    .padding(.horizontal, 16)
+                                            }
+                                            TextField("", text: $username)
+                                                .foregroundColor(.spendyText)
+                                                .padding()
+                                        }
+                                        .background(Color.spendyBackground)
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                        )
+                                        .autocapitalization(.none)
                                     }
                                     
+                                    // Password Field
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text("Password")
                                             .font(.subheadline)
                                             .fontWeight(.semibold)
                                             .foregroundColor(.spendyText)
                                         
-                                        SecureField("La tua password", text: $password)
-                                            .foregroundColor(.spendyText)
-                                            .padding()
-                                            .background(Color.spendySecondaryText)
-                                            .cornerRadius(8)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                            )
+                                        ZStack(alignment: .leading) {
+                                            if password.isEmpty {
+                                                Text("La tua password")
+                                                    .foregroundColor(.spendyText.opacity(0.6)) // Darker placeholder
+                                                    .padding(.horizontal, 16)
+                                            }
+                                            SecureField("", text: $password)
+                                                .foregroundColor(.spendyText)
+                                                .padding()
+                                        }
+                                        .background(Color.spendyBackground)
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                        )
                                     }
                                     
                                     if !isLoginMode {
+                                        // Email Field
                                         VStack(alignment: .leading, spacing: 8) {
                                             Text("Email")
                                                 .font(.subheadline)
                                                 .fontWeight(.semibold)
                                                 .foregroundColor(.spendyText)
                                             
-                                            TextField("Email", text: $email)
-                                                .foregroundColor(.spendyText)
-                                                .padding()
-                                                .background(Color.spendySecondaryText)
-                                                .cornerRadius(8)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                                )
-                                                .autocapitalization(.none)
-                                                .keyboardType(.emailAddress)
+                                            ZStack(alignment: .leading) {
+                                                if email.isEmpty {
+                                                    Text("Email")
+                                                        .foregroundColor(.spendyText.opacity(0.6)) // Darker placeholder
+                                                        .padding(.horizontal, 16)
+                                                }
+                                                TextField("", text: $email)
+                                                    .foregroundColor(.spendyText)
+                                                    .padding()
+                                            }
+                                            .background(Color.spendyBackground)
+                                            .cornerRadius(8)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                            )
+                                            .autocapitalization(.none)
+                                            .keyboardType(.emailAddress)
                                         }
                                         
                                         HStack(spacing: 12) {
+                                            // Name Field
                                             VStack(alignment: .leading, spacing: 8) {
                                                 Text("Nome")
                                                     .font(.subheadline)
                                                     .fontWeight(.semibold)
                                                     .foregroundColor(.spendyText)
                                                 
-                                                TextField("Nome", text: $name)
-                                                    .foregroundColor(.spendyText)
-                                                    .padding()
-                                                    .background(Color.spendySecondaryText)
-                                                    .cornerRadius(8)
-                                                    .overlay(
-                                                        RoundedRectangle(cornerRadius: 8)
-                                                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                                    )
+                                                ZStack(alignment: .leading) {
+                                                    if name.isEmpty {
+                                                        Text("Nome")
+                                                            .foregroundColor(.spendyText.opacity(0.6)) // Darker placeholder
+                                                            .padding(.horizontal, 16)
+                                                    }
+                                                    TextField("", text: $name)
+                                                        .foregroundColor(.spendyText)
+                                                        .padding()
+                                                }
+                                                .background(Color.spendyBackground)
+                                                .cornerRadius(8)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                                )
                                             }
                                             
+                                            // Surname Field
                                             VStack(alignment: .leading, spacing: 8) {
                                                 Text("Cognome")
                                                     .font(.subheadline)
                                                     .fontWeight(.semibold)
                                                     .foregroundColor(.spendyText)
                                                 
-                                                TextField("Cognome", text: $surname)
-                                                    .foregroundColor(.spendyText)
-                                                    .padding()
-                                                    .background(Color.spendySecondaryText)
-                                                    .cornerRadius(8)
-                                                    .overlay(
-                                                        RoundedRectangle(cornerRadius: 8)
-                                                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                                    )
+                                                ZStack(alignment: .leading) {
+                                                    if surname.isEmpty {
+                                                        Text("Cognome")
+                                                            .foregroundColor(.spendyText.opacity(0.6)) // Darker placeholder
+                                                            .padding(.horizontal, 16)
+                                                    }
+                                                    TextField("", text: $surname)
+                                                        .foregroundColor(.spendyText)
+                                                        .padding()
+                                                }
+                                                .background(Color.spendyBackground)
+                                                .cornerRadius(8)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                                )
                                             }
                                         }
                                     }
