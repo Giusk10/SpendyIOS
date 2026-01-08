@@ -63,7 +63,7 @@ struct DashboardView: View {
             }
             }
             .navigationTitle("Spese")
-            .accentColor(.spendyText) // Darken back buttons and navigation items
+            .accentColor(.spendyBackground) // Darken back buttons and navigation items
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
