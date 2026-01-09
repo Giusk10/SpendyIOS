@@ -160,17 +160,11 @@ struct ExpenseCard: View {
                 
                 Spacer()
                 
-                // Right Side: Amount and Chevron
-                HStack(spacing: 8) {
-                    Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
-                    
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.spendyText) // Darker chevron color as requested
-                }
+                // Right Side: Amount
+                Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
             }
             .padding(16)
             .background(Color.white)
@@ -183,15 +177,26 @@ struct ExpenseCard: View {
 extension String {
     func formattedDate() -> String {
         let parser = DateFormatter()
-        // Try the robust formats or just simple one for display helper
+        // Try the robust formats
         let formats = ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy"]
         
         for format in formats {
             parser.dateFormat = format
             if let date = parser.date(from: self) {
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                return formatter.string(from: date)
+                let calendar = Calendar.current
+                let timeFormatter = DateFormatter()
+                timeFormatter.dateFormat = "HH:mm"
+                
+                if calendar.isDateInToday(date) {
+                    return "Oggi, \(timeFormatter.string(from: date))"
+                } else if calendar.isDateInYesterday(date) {
+                    return "Ieri, \(timeFormatter.string(from: date))"
+                } else {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "dd MMMM yyyy, HH:mm"
+                    formatter.locale = Locale(identifier: "it_IT")
+                    return formatter.string(from: date)
+                }
             }
         }
         return self

@@ -25,12 +25,12 @@ struct AuthView: View {
                     VStack(spacing: 30) {
                         
                         // Logo / Header
-//                        Image("SpendyLogo")
-//                            .resizable()
-//                            .scaledToFit()
-//                            .frame(width: 80, height: 80)
-//                            .clipShape(RoundedRectangle(cornerRadius: 16))
-//                            .padding(.top, 40)
+                        Image("SpendyLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .padding(.top, 40)
                         
                         VStack(spacing: 12) {
                             Text("Bentornato su Spendy")
@@ -209,18 +209,21 @@ struct AuthView: View {
                             }
                             
                             Button(action: handleAction) {
-                                if authManager.isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
+                                ZStack {
+                                    if authManager.isLoading {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    }
+                                    
                                     Text(isLoginMode ? "Accedi" : "Registrati")
                                         .font(.headline)
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(Color.spendyPrimary)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(12)
+                                        .opacity(authManager.isLoading ? 0 : 1)
                                 }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.spendyPrimary)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
                             }
                             .disabled(authManager.isLoading)
                             

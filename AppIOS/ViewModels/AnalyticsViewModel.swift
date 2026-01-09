@@ -113,64 +113,10 @@ class AnalyticsViewModel: ObservableObject {
             CategoryMetric(name: key, amount: value.0, count: value.1)
         }.sorted(by: { $0.amount > $1.amount })
         
-        // 3. Chart Data (Dynamic based on Filter)
-        generateChartData(from: outflows)
-    }
-    
-    private func generateChartData(from expenses: [Expense]) {
-        let dateFormatter = DateFormatter()
-        let calendar = Calendar.current
-        var chartPoints: [MonthlyMetric] = []
-        var groupedExpenses: [Date: Double] = [:]
         
-        // Determine grouping strategy
-        let isDaily = (filterMode == .month || filterMode == .dateRange)
-        
-        // Date Parsing Helper
-        let parseDate: (String) -> Date? = { dateString in
-            // Try standard formats
-            let formats = ["yyyy-MM-dd", "dd/MM/yyyy", "yyyy-MM-dd HH:mm:ss"]
-            for format in formats {
-                dateFormatter.dateFormat = format
-                if let date = dateFormatter.date(from: dateString) { return date }
-            }
-            return nil
-        }
-        
-        for expense in expenses {
-            if let dateStr = expense.startedDate, let fullDate = parseDate(dateStr) {
-                let keyDate: Date
-                if isDaily {
-                    // Group by Day (Strip time)
-                    let components = calendar.dateComponents([.year, .month, .day], from: fullDate)
-                    keyDate = calendar.date(from: components) ?? fullDate
-                } else {
-                    // Group by Month (First day of month)
-                    let components = calendar.dateComponents([.year, .month], from: fullDate)
-                    keyDate = calendar.date(from: components) ?? fullDate
-                }
-                
-                groupedExpenses[keyDate, default: 0] += abs(expense.amount)
-            }
-        }
-        
-        // Sort keys and create metrics
-        let sortedKeys = groupedExpenses.keys.sorted()
-        
-        if isDaily {
-             dateFormatter.dateFormat = "dd" // Day number
-        } else {
-             dateFormatter.dateFormat = "MMM" // Month name
-        }
-        
-        for date in sortedKeys {
-            if let amount = groupedExpenses[date] {
-                let label = dateFormatter.string(from: date)
-                chartPoints.append(MonthlyMetric(month: label, amount: amount, date: date))
-            }
-        }
-        
-        self.monthlyData = chartPoints
+        self.topCategories = categoryMap.map { key, value in
+            CategoryMetric(name: key, amount: value.0, count: value.1)
+        }.sorted(by: { $0.amount > $1.amount })
     }
     
     // Legacy/Comparison method - can keep or remove if we rely fully on local agg

@@ -102,11 +102,13 @@ struct AnalyticsView: View {
                                         HStack {
                                             Picker("Mese", selection: $viewModel.selectedMonth) {
                                                 ForEach(1...12, id: \.self) { month in
-                                                    Text(Calendar.current.shortMonthSymbols[month - 1]).tag(month)
+                                                    Text(Calendar.current.monthSymbols[month - 1])
+                                                        .tag(month)
                                                 }
                                             }
                                             .pickerStyle(.menu)
                                             .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 4) // Slight padding increase to "make bigger"
                                             .background(Color.white)
                                             .cornerRadius(8)
                                             
@@ -197,7 +199,7 @@ struct AnalyticsView: View {
                                         RuleMark(x: .value("Data", selectedMonth))
                                             .foregroundStyle(Color.spendySecondaryText.opacity(0.5))
                                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
-                                            .annotation(position: .top, alignment: .center) {
+                                            .annotation(position: .topLeading, alignment: .center) {
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text(item.month)
                                                         .font(.caption)
