@@ -47,9 +47,11 @@ class ExpenseService: ObservableObject {
         }
     }
     
-    func getMonthlyStats(year: String) async -> [Double]? {
-        let body = ["year": year]
-        return try? await performRequest(endpoint: "/getMonthlyAmountOfYear", method: "POST", body: body, responseType: [Double].self)
+    func getMonthlyStats(year: Int) async -> [String: Double]? {
+         let body = [
+            "year": String(year)
+        ]
+        return try? await performRequest(endpoint: "/getMonthlyAmountOfYear", method: "POST", body: body, responseType: [String: Double].self)
     }
     
     func fetchExpensesByDate(start: Date, end: Date) async throws -> [Expense] {

@@ -7,6 +7,7 @@ struct AnalyticsView: View {
     // Mock state for UI filters
     @State private var selectedYear = "2025"
     @State private var selectedFilter = "Tutte le spese importate"
+    @State private var selectedMonth: String? = nil
     
     var body: some View {
         NavigationView {
@@ -101,7 +102,7 @@ struct AnalyticsView: View {
                                         HStack {
                                             Picker("Mese", selection: $viewModel.selectedMonth) {
                                                 ForEach(1...12, id: \.self) { month in
-                                                    Text(Calendar.current.monthSymbols[month - 1]).tag(month)
+                                                    Text(Calendar.current.shortMonthSymbols[month - 1]).tag(month)
                                                 }
                                             }
                                             .pickerStyle(.menu)
@@ -158,18 +159,18 @@ struct AnalyticsView: View {
                             
                             // 3. Chart Section
                             VStack(alignment: .leading, spacing: 16) {
-                                Text("Andamento mensile")
-                                    .font(.headline)
-                                    .foregroundColor(.spendyText)
-                                    .padding(.horizontal)
-                                
-                                if viewModel.monthlyData.isEmpty {
-                                    Text("Nessun dato disponibile")
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Andamento mensile")
+                                        .font(.headline)
+                                        .foregroundColor(.spendyText)
+                                    Text("Importi assoluti delle uscite registrate per mese")
                                         .font(.caption)
                                         .foregroundColor(.spendySecondaryText)
-                                        .padding(.horizontal)
-                                } else {
-                                    Chart(viewModel.monthlyData) { item in
+                                }
+                                .padding(.horizontal)
+                                
+                                Chart {
+                                    ForEach(viewModel.monthlyData) { item in
                                         LineMark(
                                             x: .value("Data", item.month),
                                             y: .value("Importo", item.amount)
@@ -191,8 +192,65 @@ struct AnalyticsView: View {
                                             )
                                         )
                                     }
-                                    .frame(height: 250)
-                                    .padding(.horizontal)
+                                    
+                                    if let selectedMonth, let item = viewModel.monthlyData.first(where: { $0.month == selectedMonth }) {
+                                        RuleMark(x: .value("Data", selectedMonth))
+                                            .foregroundStyle(Color.spendySecondaryText.opacity(0.5))
+                                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                                            .annotation(position: .top, alignment: .center) {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(item.month)
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                    
+                                                    HStack(spacing: 4) {
+                                                        Text("value :")
+                                                            .font(.caption)
+                                                            .foregroundColor(.spendyPrimary)
+                                                        Text(item.amount, format: .currency(code: "EUR"))
+                                                            .font(.caption)
+                                                            .fontWeight(.bold)
+                                                            .foregroundColor(.spendyPrimary)
+                                                    }
+                                                }
+                                                .padding(12)
+                                                .background(Color.white)
+                                                .cornerRadius(12)
+                                                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                                                )
+                                            }
+                                    }
+                                }
+                                .chartYAxis {
+                                    AxisMarks(position: .leading)
+                                }
+                                .frame(height: 250)
+                                .padding(.horizontal)
+                                .chartOverlay { proxy in
+                                    GeometryReader { geometry in
+                                        Rectangle().fill(.clear).contentShape(Rectangle())
+                                            .gesture(
+                                                DragGesture()
+                                                    .onChanged { value in
+                                                        let x = value.location.x
+                                                        if let month: String = proxy.value(atX: x) {
+                                                            selectedMonth = month
+                                                        }
+                                                    }
+                                                    .onEnded { _ in
+                                                        selectedMonth = nil
+                                                    }
+                                            )
+                                            .onTapGesture { location in
+                                                 let x = location.x
+                                                 if let month: String = proxy.value(atX: x) {
+                                                     selectedMonth = month
+                                                 }
+                                            }
+                                    }
                                 }
                             }
                             .padding(.vertical)

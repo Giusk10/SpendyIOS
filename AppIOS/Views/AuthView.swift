@@ -9,6 +9,12 @@ struct AuthView: View {
     @State private var name = ""
     @State private var surname = ""
     
+    enum Field: Hashable {
+        case username, password, email, name, surname
+    }
+    
+    @FocusState private var focusedField: Field?
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -60,6 +66,7 @@ struct AuthView: View {
                                                     .padding(.horizontal, 16)
                                             }
                                             TextField("", text: $username)
+                                                .focused($focusedField, equals: .username)
                                                 .foregroundColor(.spendyText)
                                                 .padding()
                                         }
@@ -69,6 +76,8 @@ struct AuthView: View {
                                             RoundedRectangle(cornerRadius: 8)
                                                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                                         )
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { focusedField = .username }
                                         .autocapitalization(.none)
                                     }
                                     
@@ -86,6 +95,7 @@ struct AuthView: View {
                                                     .padding(.horizontal, 16)
                                             }
                                             SecureField("", text: $password)
+                                                .focused($focusedField, equals: .password)
                                                 .foregroundColor(.spendyText)
                                                 .padding()
                                         }
@@ -95,6 +105,8 @@ struct AuthView: View {
                                             RoundedRectangle(cornerRadius: 8)
                                                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                                         )
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { focusedField = .password }
                                     }
                                     
                                     if !isLoginMode {
@@ -112,6 +124,7 @@ struct AuthView: View {
                                                         .padding(.horizontal, 16)
                                                 }
                                                 TextField("", text: $email)
+                                                    .focused($focusedField, equals: .email)
                                                     .foregroundColor(.spendyText)
                                                     .padding()
                                             }
@@ -121,6 +134,8 @@ struct AuthView: View {
                                                 RoundedRectangle(cornerRadius: 8)
                                                     .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                                             )
+                                            .contentShape(Rectangle())
+                                            .onTapGesture { focusedField = .email }
                                             .autocapitalization(.none)
                                             .keyboardType(.emailAddress)
                                         }
@@ -140,6 +155,7 @@ struct AuthView: View {
                                                             .padding(.horizontal, 16)
                                                     }
                                                     TextField("", text: $name)
+                                                        .focused($focusedField, equals: .name)
                                                         .foregroundColor(.spendyText)
                                                         .padding()
                                                 }
@@ -149,6 +165,8 @@ struct AuthView: View {
                                                     RoundedRectangle(cornerRadius: 8)
                                                         .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                                                 )
+                                                .contentShape(Rectangle())
+                                                .onTapGesture { focusedField = .name }
                                             }
                                             
                                             // Surname Field
@@ -165,6 +183,7 @@ struct AuthView: View {
                                                             .padding(.horizontal, 16)
                                                     }
                                                     TextField("", text: $surname)
+                                                        .focused($focusedField, equals: .surname)
                                                         .foregroundColor(.spendyText)
                                                         .padding()
                                                 }
@@ -174,6 +193,8 @@ struct AuthView: View {
                                                     RoundedRectangle(cornerRadius: 8)
                                                         .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                                                 )
+                                                .contentShape(Rectangle())
+                                                .onTapGesture { focusedField = .surname }
                                             }
                                         }
                                     }

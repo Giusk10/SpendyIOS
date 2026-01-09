@@ -175,37 +175,45 @@ class AnalyticsViewModel: ObservableObject {
     
     // Legacy/Comparison method - can keep or remove if we rely fully on local agg
     func fetchMonthlyStats(year: String) {
-        // Only fetch if we really want server side stats for the whole year specifically
-        // usage in updateFilters calls this.
+        guard let yearInt = Int(year) else { return }
         
         Task {
-            if let amounts = await ExpenseService.shared.getMonthlyStats(year: year) {
+            if let amounts = try? await ExpenseService.shared.getMonthlyStats(year: yearInt) {
                 await MainActor.run {
-                    self.monthlyData = processMonthlyStats(amounts, year: year)
+                    self.monthlyData = processMonthlyStats(amounts, year: yearInt)
                 }
             }
         }
     }
     
-    private func processMonthlyStats(_ amounts: [Double], year: String) -> [MonthlyMetric] {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MMM"
+    private func processMonthlyStats(_ amounts: [String: Double], year: Int) -> [MonthlyMetric] {
         let calendar = Calendar.current
         var metrics: [MonthlyMetric] = []
         
-        for (index, amount) in amounts.enumerated() {
+        // Output format check: "MMM" for chart calls
+        let outputFormatter = DateFormatter()
+        outputFormatter.dateFormat = "MMM"
+        
+        // Helper to format key
+        let keyFormatter = DateFormatter()
+        keyFormatter.dateFormat = "yyyy-MM"
+        
+        for month in 1...12 {
             var components = DateComponents()
-            components.year = Int(year)
-            components.month = index + 1 // 1-based
+            components.year = year
+            components.month = month
             components.day = 1
             
             if let date = calendar.date(from: components) {
-                let monthName = dateFormatter.string(from: date)
-                metrics.append(MonthlyMetric(month: monthName, amount: amount, date: date))
+                let key = keyFormatter.string(from: date)
+                let amount = amounts[key] ?? 0.0 // Default to 0 if missing
+                let monthName = outputFormatter.string(from: date)
+                
+                metrics.append(MonthlyMetric(month: monthName, amount: abs(amount), date: date))
             }
         }
         
-        return metrics
+        return metrics.sorted(by: { $0.date < $1.date })
     }
     
     func updateFilters(year: String) {
