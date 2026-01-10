@@ -177,8 +177,17 @@ struct ExpenseCard: View {
 extension String {
     func formattedDate() -> String {
         let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
         // Try the robust formats
-        let formats = ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy"]
+        let formats = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd",
+            "dd/MM/yyyy",
+            "dd-MM-yyyy"
+        ]
         
         for format in formats {
             parser.dateFormat = format
