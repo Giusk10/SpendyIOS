@@ -3,10 +3,20 @@ import SwiftUI
 struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
     @State private var showingDeleteAlert = false
+    @State private var searchText = ""
+    @State private var isSearchVisible = false
     
     // Computed property for total balance
     var totalBalance: Double {
         viewModel.expenses.reduce(0) { $0 + $1.amount }
+    }
+    
+    var filteredExpenses: [Expense] {
+        if searchText.isEmpty {
+            return viewModel.expenses
+        } else {
+            return viewModel.expenses.filter { $0.userDescription.localizedCaseInsensitiveContains(searchText) }
+        }
     }
     
     var body: some View {
@@ -31,7 +41,7 @@ struct DashboardView: View {
                     .overlay(
                         viewModel.isLoading ? ProgressView().frame(maxWidth: .infinity, alignment: .trailing).padding() : nil
                     )
-                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                    .shadow(color: Color.black.opacity(0.00), radius: 0, x: 0, y: 0) // Explicitly remove shadow
                     
                     if let errorMessage = viewModel.errorMessage {
                          Text(errorMessage)
@@ -40,8 +50,33 @@ struct DashboardView: View {
                             .padding()
                     }
                     
+                    // Search Bar
+                    if isSearchVisible {
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.spendySecondaryText)
+                            TextField("Cerca spese...", text: $searchText)
+                                .foregroundColor(.spendyText)
+                            
+                            if !searchText.isEmpty {
+                                Button(action: {
+                                    searchText = ""
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.spendySecondaryText)
+                            }
+                        }
+                    }
+                        .padding(10)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .padding(.horizontal)
+                        .padding(.top, 16)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    
                     List {
-                        ForEach(viewModel.expenses) { expense in
+                        ForEach(filteredExpenses) { expense in
                             ExpenseCard(expense: expense)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
@@ -57,10 +92,12 @@ struct DashboardView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden) // Fix black background issue
+                    .background(Color.spendyBackground) // Force list background to match app background
                     .refreshable {
                         viewModel.fetchExpenses()
                     }
                 }
+                .background(Color.spendyBackground)
             }
             }
             .navigationTitle("Spese")
@@ -68,14 +105,25 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        AuthManager.shared.logout()
-                    }) {
-                         HStack {
+                    HStack(spacing: 16) {
+                        Button(action: {
+                            AuthManager.shared.logout()
+                        }) {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
-                            Text("Logout")
+                                .foregroundColor(.spendyRed)
                         }
-                        .foregroundColor(.spendyRed)
+                        
+                        Button(action: {
+                            withAnimation {
+                                isSearchVisible.toggle()
+                                if !isSearchVisible {
+                                    searchText = "" // Clear search when hiding
+                                }
+                            }
+                        }) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.primary)
+                        }
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
