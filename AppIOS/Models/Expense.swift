@@ -40,6 +40,23 @@ struct Expense: Identifiable, Codable {
         case state
         case category
     }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Handle optional and missing keys gracefully with defaults
+        self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        self.type = try container.decodeIfPresent(String.self, forKey: .type) ?? "SPESA"
+        self.product = try container.decodeIfPresent(String.self, forKey: .product) ?? ""
+        self.startedDate = try container.decodeIfPresent(String.self, forKey: .startedDate)
+        self.completedDate = try container.decodeIfPresent(String.self, forKey: .completedDate)
+        self.userDescription = try container.decodeIfPresent(String.self, forKey: .userDescription) ?? ""
+        self.amount = try container.decodeIfPresent(Double.self, forKey: .amount) ?? 0.0
+        self.fee = try container.decodeIfPresent(Double.self, forKey: .fee)
+        self.currency = try container.decodeIfPresent(String.self, forKey: .currency)
+        self.state = try container.decodeIfPresent(String.self, forKey: .state)
+        self.category = try container.decodeIfPresent(String.self, forKey: .category)
+    }
 }
 
 // DTO helper for API if needed, but Expense can now be used directly if it matches JSON.
