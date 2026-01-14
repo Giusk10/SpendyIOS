@@ -55,9 +55,10 @@ struct DashboardView: View {
                                 AuthManager.shared.logout()
                             }) {
                                 Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.spendyRed)
-                                    .frame(width: 40, height: 40)
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(.ultraThinMaterial, in: Circle())
                             }
                             .transition(.scale.combined(with: .opacity))
                         }
@@ -65,11 +66,11 @@ struct DashboardView: View {
                         // Search Bar
                         HStack {
                             Image(systemName: "magnifyingglass")
-                                .foregroundColor(.spendySecondaryText)
+                                .foregroundColor(.spendySecondaryText) // Keep generic secondary text color for icon
                             
                             TextField("Cerca spese...", text: $searchText)
                                 .focused($isSearchFocused)
-                                .foregroundColor(.spendyText)
+                                .foregroundColor(.white) // Liquid glass usually implies light text on dark or blur
                                 .submitLabel(.search)
                             
                             if !searchText.isEmpty || isSearchFocused {
@@ -89,7 +90,7 @@ struct DashboardView: View {
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity) // Allow expansion
                         .background(.ultraThinMaterial, in: Capsule())
-                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2) // Maintain shadow
                         .onTapGesture {
                              isSearchFocused = true
                         }
@@ -101,17 +102,19 @@ struct DashboardView: View {
                                     showingDeleteAlert = true
                                 }) {
                                     Image(systemName: "trash")
-                                        .font(.system(size: 20))
+                                        .font(.system(size: 18, weight: .semibold))
                                         .foregroundColor(.spendyRed)
-                                        .frame(width: 40, height: 40)
+                                        .frame(width: 44, height: 44)
+                                        .background(.ultraThinMaterial, in: Circle())
                                 }
                                 .disabled(viewModel.expenses.isEmpty)
                                 
                                 NavigationLink(destination: AddExpenseView()) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .symbolRenderingMode(.hierarchical)
-                                        .font(.system(size: 28))
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 20, weight: .semibold)) // Standardize size
                                         .foregroundColor(.spendyPrimary)
+                                        .frame(width: 44, height: 44)
+                                        .background(.ultraThinMaterial, in: Circle())
                                 }
                             }
                             .transition(.scale.combined(with: .opacity))
