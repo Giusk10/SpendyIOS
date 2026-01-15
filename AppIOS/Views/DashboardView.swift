@@ -56,88 +56,6 @@ struct DashboardView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Custom Header with Search Bar and Actions
-                    HStack(spacing: 12) {
-                        
-                        if !isSearchFocused {
-                            // Logout Button
-                            Button(action: {
-                                AuthManager.shared.logout()
-                            }) {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.spendyText)
-                                    .frame(width: 44, height: 44)
-                                    .background(Color.white, in: Circle())
-                                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                            }
-                            .transition(.scale.combined(with: .opacity))
-                        }
-
-                        // Search Bar
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.spendySecondaryText) // Keep generic secondary text color for icon
-                            
-                            TextField("Cerca spese...", text: $searchText)
-                                .focused($isSearchFocused)
-                                .foregroundColor(.spendyText)
-                                .submitLabel(.search)
-                            
-                            if !searchText.isEmpty || isSearchFocused {
-                                Button(action: {
-                                    withAnimation(.spring()) {
-                                        searchText = ""
-                                        isSearchFocused = false
-                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                    }
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.spendySecondaryText)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity) // Allow expansion
-                        .background(Color.white, in: Capsule())
-                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2) // Maintain shadow
-                        .onTapGesture {
-                             isSearchFocused = true
-                        }
-                        
-                        if !isSearchFocused {
-                            // Actions (Trash, Add)
-                            HStack(spacing: 12) {
-                                Button(action: {
-                                    showingDeleteAlert = true
-                                }) {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(.spendyRed)
-                                        .frame(width: 44, height: 44)
-                                        .background(Color.white, in: Circle())
-                                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                                }
-                                .disabled(viewModel.expenses.isEmpty)
-                                
-                                NavigationLink(destination: AddExpenseView()) {
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 20, weight: .semibold)) // Standardize size
-                                        .foregroundColor(.spendyPrimary)
-                                        .frame(width: 44, height: 44)
-                                        .background(Color.white, in: Circle())
-                                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                                }
-                            }
-                            .transition(.scale.combined(with: .opacity))
-                        }
-                    }
-                    .animation(.spring(), value: isSearchFocused) // Animate layout changes
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                    .padding(.bottom, 16)
-                    
                     // Header Summary & Filters
                     VStack(spacing: 16) {
                         VStack(spacing: 8) {
@@ -196,7 +114,6 @@ struct DashboardView: View {
                     }
                 }
             }
-            .navigationBarHidden(true) // Hide default navigation bar
             .onAppear {
                  viewModel.fetchExpenses()
             }
@@ -207,6 +124,73 @@ struct DashboardView: View {
                 }
             } message: {
                 Text("Are you sure you want to delete all expenses? This action cannot be undone.")
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if !isSearchFocused {
+                        Button(action: {
+                            AuthManager.shared.logout()
+                        }) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .foregroundColor(.spendyText)
+                        }
+                        .transition(.opacity)
+                    }
+                }
+                
+                ToolbarItem(placement: .principal) {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.spendySecondaryText)
+                        
+                        TextField("Cerca spese...", text: $searchText)
+                            .focused($isSearchFocused)
+                            .foregroundColor(.spendyText)
+                            .submitLabel(.search)
+                            .frame(minWidth: 100) // Minimum width to be visible/clickable
+                        
+                        if isSearchFocused || !searchText.isEmpty {
+                            Button(action: {
+                                withAnimation(.spring()) {
+                                    searchText = ""
+                                    isSearchFocused = false
+                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                }
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.spendySecondaryText)
+                            }
+                            .transition(.opacity)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(Color.white.opacity(0.2), in: Capsule()) // Subtle background for the search area
+                    // On iOS, principle item width is constrained. 
+                    // To make it expand properly, we might need to rely on the removal of other items 
+                    // giving it more space, which SwiftUI does automatically for .principal.
+                    .animation(.spring(), value: isSearchFocused)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if !isSearchFocused {
+                        HStack {
+                            Button(action: {
+                                showingDeleteAlert = true
+                            }) {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.spendyRed)
+                            }
+                            .disabled(viewModel.expenses.isEmpty)
+                            
+                            NavigationLink(destination: AddExpenseView()) {
+                                Image(systemName: "plus")
+                                    .foregroundColor(.spendyPrimary)
+                            }
+                        }
+                        .transition(.opacity)
+                    }
+                }
             }
         }
     }
