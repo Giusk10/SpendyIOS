@@ -4,6 +4,9 @@ struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
     @State private var showingDeleteAlert = false
     @State private var searchText = ""
+    
+    // @FocusState non ha bisogno di essere inizializzata a false, lo è di default.
+    // Il problema era l'area di tocco.
     @FocusState private var isSearchFocused: Bool
     
     enum TransactionFilter: String, CaseIterable {
@@ -14,8 +17,7 @@ struct DashboardView: View {
     
     @State private var selectedFilter: TransactionFilter = .all
     
-    // Computed property for total balance
-    // Computed property for total balance
+    // MARK: - Computed Properties
     var totalBalance: Double {
         let expensesToSum: [Expense]
         switch selectedFilter {
@@ -50,191 +52,197 @@ struct DashboardView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.spendyBackground
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // Header Summary & Filters
-                    VStack(spacing: 16) {
-                        VStack(spacing: 8) {
-                            Text("Total Balance")
-                                .font(.subheadline)
-                                .foregroundColor(.spendySecondaryText)
-                            Text(totalBalance, format: .currency(code: "EUR"))
-                                .font(.system(size: 34, weight: .bold, design: .rounded))
-                                .foregroundColor(totalBalance >= 0 ? .spendyText : .spendyRed)
+        // GeometryReader fondamentale per calcolare la larghezza esatta disponibile
+        GeometryReader { geometry in
+            NavigationView {
+                ZStack {
+                    Color.spendyBackground
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: 0) {
+                        
+                        // --- SOMMARIO SALDO & FILTRI ---
+                        VStack(spacing: 16) {
+                            VStack(spacing: 8) {
+                                Text("Total Balance")
+                                    .font(.subheadline)
+                                    .foregroundColor(.spendySecondaryText)
+                                Text(totalBalance, format: .currency(code: "EUR"))
+                                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                                    .foregroundColor(totalBalance >= 0 ? .spendyText : .spendyRed)
+                            }
+                            
+                            Picker("Filtro", selection: $selectedFilter) {
+                                ForEach(TransactionFilter.allCases, id: \.self) { filter in
+                                    Text(filter.rawValue).tag(filter)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .padding(.horizontal)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .background(Color.white)
+                        .cornerRadius(20, corners: [.bottomLeft, .bottomRight])
+                        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+                        .zIndex(1)
+
+                        if let errorMessage = viewModel.errorMessage {
+                             Text(errorMessage)
+                                .foregroundColor(.spendyRed)
+                                .font(.caption)
+                                .padding()
                         }
                         
-                        // Filter Segmented Control (Restored)
-                        Picker("Filtro", selection: $selectedFilter) {
-                            ForEach(TransactionFilter.allCases, id: \.self) { filter in
-                                Text(filter.rawValue).tag(filter)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .background(Color.white)
-                    .cornerRadius(20, corners: [.bottomLeft, .bottomRight])
-                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-
-                    
-                    if let errorMessage = viewModel.errorMessage {
-                         Text(errorMessage)
-                            .foregroundColor(.spendyRed)
-                            .font(.caption)
-                            .padding()
-                    }
-                    
-                    List {
-                        ForEach(filteredExpenses) { expense in
-                            ExpenseCard(expense: expense)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        viewModel.deleteExpense(expense)
-                                    } label: {
-                                        Label("Elimina", systemImage: "trash")
+                        List {
+                            ForEach(filteredExpenses) { expense in
+                                ExpenseCard(expense: expense)
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            viewModel.deleteExpense(expense)
+                                        } label: {
+                                            Label("Elimina", systemImage: "trash")
+                                        }
+                                        .tint(.spendyRed)
                                     }
-                                    .tint(.spendyRed)
-                                }
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden) // Fix black background issue
-                    .background(Color.spendyBackground) // Force list background to match app background
-                    .refreshable {
-                        viewModel.fetchExpenses()
-                    }
-                }
-            }
-            .onAppear {
-                 viewModel.fetchExpenses()
-            }
-            .alert("Delete All Expenses", isPresented: $showingDeleteAlert) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
-                    viewModel.deleteAllExpenses()
-                }
-            } message: {
-                Text("Are you sure you want to delete all expenses? This action cannot be undone.")
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    if !isSearchFocused {
-                        Button(action: {
-                            AuthManager.shared.logout()
-                        }) {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.spendyText)
-                        }
-                        .transition(.opacity)
-                    }
-                }
-                
-                ToolbarItem(placement: .principal) {
-                    Group {
-                        if !isSearchFocused && searchText.isEmpty {
-                            // Collapsed State: Capsule Button
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    isSearchFocused = true
-                                }
-                            }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.gray)
-                                    Text("Cerca")
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(.gray)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .frame(minWidth: 200) // Much wider to reach towards trash button
-                                .background(Color(UIColor.systemGray6))
-                                .clipShape(Capsule())
                             }
-                        } else {
-                            // Expanded State: Search Bar
-                            HStack {
+                        }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .refreshable {
+                            viewModel.fetchExpenses()
+                        }
+                    }
+                }
+                .navigationBarTitleDisplayMode(.inline)
+                .onAppear {
+                     viewModel.fetchExpenses()
+                }
+                // MARK: - TOOLBAR REVOLUT STYLE
+                .toolbar {
+                    
+                    // 1. SINISTRA: Profilo (Scompare se cerchi)
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        if !isSearchFocused {
+                            Button(action: {
+                                AuthManager.shared.logout()
+                            }) {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.primary)
+                            }
+                            .transition(.opacity)
+                        }
+                    }
+                    
+                    // 2. CENTRO: Barra Ricerca
+                    ToolbarItem(placement: .principal) {
+                        ZStack {
+                            // 1. SFONDO: Stesso identico stile/colore dei bottoni laterali
+                            Capsule()
+                                .fill(Color(uiColor: .secondarySystemBackground)) 
+                                .frame(height: 40)
+                            
+                            // 2. CONTENUTO: Lente, Testo, X
+                            HStack(spacing: 0) {
                                 Image(systemName: "magnifyingglass")
                                     .foregroundColor(.gray)
+                                    .font(.system(size: 17))
+                                    .padding(.leading, 12)
                                 
-                                TextField("Cerca spese...", text: $searchText)
+                                TextField("Cerca", text: $searchText)
                                     .focused($isSearchFocused)
-                                    .foregroundColor(.spendyText)
+                                    .font(.system(size: 17))
+                                    .padding(.horizontal, 8)
+                                    .frame(height: 40)
                                     .submitLabel(.search)
                                 
-                                if !searchText.isEmpty || isSearchFocused {
-                                    Button(action: {
-                                        withAnimation(.spring()) {
-                                            searchText = ""
-                                            isSearchFocused = false
-                                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                        }
-                                    }) {
+                                if !searchText.isEmpty {
+                                    Button(action: { searchText = "" }) {
                                         Image(systemName: "xmark.circle.fill")
                                             .foregroundColor(.gray)
+                                            .font(.system(size: 17))
                                     }
+                                    .padding(.trailing, 10)
                                 }
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color(UIColor.systemGray6))
-                            .clipShape(Capsule())
-                        }
-                    }
-                    .animation(.spring(), value: isSearchFocused)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if !isSearchFocused {
-                        HStack(spacing: 16) {
-                            Button(action: {
-                                showingDeleteAlert = true
-                            }) {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.spendyRed)
-                            }
-                            .disabled(viewModel.expenses.isEmpty)
                             
-                            NavigationLink(destination: AddExpenseView()) {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.spendyPrimary)
+                            // 3. LAYER INVISIBILE PER IL CLICK (Fondamentale)
+                            // Se la tastiera è chiusa, questo rettangolo invisibile cattura il tocco ovunque
+                            if !isSearchFocused {
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        isSearchFocused = true
+                                    }
                             }
                         }
+                        // CALCOLO LARGHEZZA
+                        // - Espanso: schermo meno margini (32)
+                        // - Chiuso: schermo meno spazio bottoni (170)
+                        .frame(width: isSearchFocused ? (geometry.size.width - 32) : (geometry.size.width - 170))
+                        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isSearchFocused)
+                    }
+                    
+                    // 3. DESTRA: Bottoni (Scompaiono se cerchi)
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        HStack(spacing: 8) {
+                            if isSearchFocused {
+                                // Bottone ANNULLA
+                                Button("Annulla") {
+                                    withAnimation {
+                                        // Chiude tutto
+                                        isSearchFocused = false
+                                        searchText = ""
+                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                    }
+                                }
+                                .foregroundColor(.blue)
+                            } else {
+                                // Bottone Cestino
+                                Button(action: {
+                                    showingDeleteAlert = true
+                                }) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.red)
+                                }
+                                .disabled(viewModel.expenses.isEmpty)
+                                
+                                // Bottone Aggiungi (+)
+                                NavigationLink(destination: AddExpenseView()) {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                        // Transizione fluida per far sparire/apparire i bottoni
                         .transition(.opacity)
                     }
                 }
             }
         }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                viewModel.deleteExpense(viewModel.expenses[index])
+        .alert("Delete All Expenses", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                viewModel.deleteAllExpenses()
             }
+        } message: {
+            Text("Are you sure you want to delete all expenses? This action cannot be undone.")
         }
     }
 }
+
+// MARK: - Subviews & Extensions
 
 struct ExpenseCard: View {
     let expense: Expense
     
     var body: some View {
-        // Use ZStack to hide default NavigationLink arrow and provide our own
         ZStack {
             NavigationLink(destination: ExpenseDetailView(expense: expense)) {
                 EmptyView()
@@ -243,20 +251,17 @@ struct ExpenseCard: View {
             
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 6) {
-                    // Row 1: Description
                     Text(expense.userDescription)
                         .font(.headline)
                         .lineLimit(2)
                         .foregroundColor(.spendyText)
                     
-                    // Row 2: Date
                     if let date = expense.startedDate {
                         Text(date.formattedDate())
                             .font(.caption)
                             .foregroundColor(.spendySecondaryText)
                     }
                     
-                    // Row 3: Category
                     if let category = expense.category {
                         Text(category)
                             .font(.caption2)
@@ -271,7 +276,6 @@ struct ExpenseCard: View {
                 
                 Spacer()
                 
-                // Right Side: Amount
                 Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
                     .font(.headline)
                     .fontWeight(.bold)
@@ -305,7 +309,6 @@ extension String {
     func formattedDate() -> String {
         let parser = DateFormatter()
         parser.locale = Locale(identifier: "en_US_POSIX")
-        // Try the robust formats
         let formats = [
             "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
             "yyyy-MM-dd'T'HH:mm:ssZ",
