@@ -5,8 +5,10 @@ struct DashboardView: View {
     @State private var showingDeleteAlert = false
     @State private var searchText = ""
     
-    // @FocusState non ha bisogno di essere inizializzata a false, lo è di default.
-    // Il problema era l'area di tocco.
+    // CORREZIONE 1: Aggiungiamo uno Stato dedicato per sapere se la ricerca è attiva (mostra tasto Annulla)
+    @State private var isSearching = false
+    
+    // Manteniamo il FocusState se vuoi gestire la tastiera, ma per la UI useremo isSearching
     @FocusState private var isSearchFocused: Bool
     
     enum TransactionFilter: String, CaseIterable {
@@ -52,175 +54,118 @@ struct DashboardView: View {
     }
     
     var body: some View {
-        // GeometryReader fondamentale per calcolare la larghezza esatta disponibile
-        GeometryReader { geometry in
-            NavigationView {
-                ZStack {
-                    Color.spendyBackground
-                        .ignoresSafeArea()
+        NavigationView {
+            ZStack {
+                Color.spendyBackground
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
                     
-                    VStack(spacing: 0) {
-                        
-                        // --- SOMMARIO SALDO & FILTRI ---
-                        VStack(spacing: 16) {
-                            VStack(spacing: 8) {
-                                Text("Total Balance")
-                                    .font(.subheadline)
-                                    .foregroundColor(.spendySecondaryText)
-                                Text(totalBalance, format: .currency(code: "EUR"))
-                                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                                    .foregroundColor(totalBalance >= 0 ? .spendyText : .spendyRed)
-                            }
-                            
-                            Picker("Filtro", selection: $selectedFilter) {
-                                ForEach(TransactionFilter.allCases, id: \.self) { filter in
-                                    Text(filter.rawValue).tag(filter)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .padding(.horizontal)
+                    // --- SOMMARIO SALDO & FILTRI ---
+                    VStack(spacing: 16) {
+                        VStack(spacing: 8) {
+                            Text("Total Balance")
+                                .font(.subheadline)
+                                .foregroundColor(.spendySecondaryText)
+                            Text(totalBalance, format: .currency(code: "EUR"))
+                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                                .foregroundColor(totalBalance >= 0 ? .spendyText : .spendyRed)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
-                        .background(Color.white)
-                        .cornerRadius(20, corners: [.bottomLeft, .bottomRight])
-                        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-                        .zIndex(1)
+                        
+                        Picker("Filtro", selection: $selectedFilter) {
+                            ForEach(TransactionFilter.allCases, id: \.self) { filter in
+                                Text(filter.rawValue).tag(filter)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+                    .background(Color.white)
+                    .cornerRadius(20, corners: [.bottomLeft, .bottomRight])
+                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+                    .zIndex(1)
 
-                        if let errorMessage = viewModel.errorMessage {
-                             Text(errorMessage)
-                                .foregroundColor(.spendyRed)
-                                .font(.caption)
-                                .padding()
-                        }
-                        
-                        List {
-                            ForEach(filteredExpenses) { expense in
-                                ExpenseCard(expense: expense)
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
-                                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        Button(role: .destructive) {
-                                            viewModel.deleteExpense(expense)
-                                        } label: {
-                                            Label("Elimina", systemImage: "trash")
-                                        }
-                                        .tint(.spendyRed)
-                                    }
-                            }
-                        }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
-                        .refreshable {
-                            viewModel.fetchExpenses()
-                        }
-                    }
-                }
-                .navigationBarTitleDisplayMode(.inline)
-                .onAppear {
-                     viewModel.fetchExpenses()
-                }
-                // MARK: - TOOLBAR REVOLUT STYLE
-                .toolbar {
-                    
-                    // 1. SINISTRA: Profilo (Scompare se cerchi)
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        if !isSearchFocused {
-                            Button(action: {
-                                AuthManager.shared.logout()
-                            }) {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.primary)
-                            }
-                            .transition(.opacity)
-                        }
+                    if let errorMessage = viewModel.errorMessage {
+                         Text(errorMessage)
+                            .foregroundColor(.spendyRed)
+                            .font(.caption)
+                            .padding()
                     }
                     
-                    // 2. CENTRO: Barra Ricerca
-                    ToolbarItem(placement: .principal) {
-                        ZStack {
-                            // 1. SFONDO: Stesso identico stile/colore dei bottoni laterali
-                            Capsule()
-                                .fill(Color(uiColor: .secondarySystemBackground)) 
-                                .frame(height: 40)
-                            
-                            // 2. CONTENUTO: Lente, Testo, X
-                            HStack(spacing: 0) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundColor(.gray)
-                                    .font(.system(size: 17))
-                                    .padding(.leading, 12)
-                                
-                                TextField("Cerca", text: $searchText)
-                                    .focused($isSearchFocused)
-                                    .font(.system(size: 17))
-                                    .padding(.horizontal, 8)
-                                    .frame(height: 40)
-                                    .submitLabel(.search)
-                                
-                                if !searchText.isEmpty {
-                                    Button(action: { searchText = "" }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.gray)
-                                            .font(.system(size: 17))
+                    List {
+                        ForEach(filteredExpenses) { expense in
+                            ExpenseCard(expense: expense)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        viewModel.deleteExpense(expense)
+                                    } label: {
+                                        Label("Elimina", systemImage: "trash")
                                     }
-                                    .padding(.trailing, 10)
+                                    .tint(.spendyRed)
                                 }
-                            }
-                            
-                            // 3. LAYER INVISIBILE PER IL CLICK (Fondamentale)
-                            // Se la tastiera è chiusa, questo rettangolo invisibile cattura il tocco ovunque
-                            if !isSearchFocused {
-                                Color.clear
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        isSearchFocused = true
-                                    }
-                            }
                         }
-                        // CALCOLO LARGHEZZA
-                        // - Espanso: schermo meno margini (32)
-                        // - Chiuso: schermo meno spazio bottoni (170)
-                        .frame(width: isSearchFocused ? (geometry.size.width - 32) : (geometry.size.width - 170))
-                        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isSearchFocused)
                     }
-                    
-                    // 3. DESTRA: Bottoni (Scompaiono se cerchi)
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .refreshable {
+                        viewModel.fetchExpenses()
+                    }
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                 viewModel.fetchExpenses()
+            }
+            // MARK: - IMPLEMENTAZIONE NATIVA (.searchable)
+            .searchable(
+                text: $searchText,
+                isPresented: $isSearching, // CORREZIONE 1: Usiamo la variabile @State, non @FocusState
+                placement: .navigationBarDrawer(displayMode: .always), // CORREZIONE 2: Questo evita che si nasconda scorrendo
+                prompt: "Cerca"
+            )
+            // .searchToolbarBehavior rimosso perché causava errore e .navigationBarDrawer fa già il lavoro
+            .toolbar {
+                
+                // 1. SINISTRA: Profilo (Si nasconde se isSearching è true)
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if !isSearching {
+                        Button(action: {
+                            AuthManager.shared.logout()
+                        }) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.primary)
+                        }
+                        .transition(.opacity)
+                    }
+                }
+                
+                // 3. DESTRA: Bottoni (Si nascondono se isSearching è true)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if !isSearching {
                         HStack(spacing: 8) {
-                            if isSearchFocused {
-                                // Bottone ANNULLA
-                                Button("Annulla") {
-                                    withAnimation {
-                                        // Chiude tutto
-                                        isSearchFocused = false
-                                        searchText = ""
-                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                    }
-                                }
-                                .foregroundColor(.blue)
-                            } else {
-                                // Bottone Cestino
-                                Button(action: {
-                                    showingDeleteAlert = true
-                                }) {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.red)
-                                }
-                                .disabled(viewModel.expenses.isEmpty)
-                                
-                                // Bottone Aggiungi (+)
-                                NavigationLink(destination: AddExpenseView()) {
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 20, weight: .semibold))
-                                        .foregroundColor(.blue)
-                                }
+                            // Bottone Cestino
+                            Button(action: {
+                                showingDeleteAlert = true
+                            }) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.red)
+                            }
+                            .disabled(viewModel.expenses.isEmpty)
+                            
+                            // Bottone Aggiungi (+)
+                            NavigationLink(destination: AddExpenseView()) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(.blue)
                             }
                         }
-                        // Transizione fluida per far sparire/apparire i bottoni
                         .transition(.opacity)
                     }
                 }
@@ -237,7 +182,7 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - Subviews & Extensions
+// MARK: - Subviews & Extensions (Invariati)
 
 struct ExpenseCard: View {
     let expense: Expense
