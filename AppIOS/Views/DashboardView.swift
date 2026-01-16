@@ -6,6 +6,7 @@ struct DashboardView: View {
     @State private var searchText = ""
     
     // CORREZIONE 1: Aggiungiamo uno Stato dedicato per sapere se la ricerca è attiva (mostra tasto Annulla)
+    @State private var isSearchVisible = false // Controlla la visibilità della search bar
     @State private var isSearching = false
     
     // Manteniamo il FocusState se vuoi gestire la tastiera, ma per la UI useremo isSearching
@@ -122,27 +123,49 @@ struct DashboardView: View {
                  viewModel.fetchExpenses()
             }
             // MARK: - IMPLEMENTAZIONE NATIVA (.searchable)
-            .searchable(
-                text: $searchText,
-                isPresented: $isSearching, // CORREZIONE 1: Usiamo la variabile @State, non @FocusState
-                placement: .navigationBarDrawer(displayMode: .always), // CORREZIONE 2: Questo evita che si nasconda scorrendo
-                prompt: "Cerca"
-            )
-            // .searchToolbarBehavior rimosso perché causava errore e .navigationBarDrawer fa già il lavoro
+            // Mostra la search bar solo se isSearchVisible è true
+            .searchableIf(isSearchVisible, text: $searchText, isPresented: $isSearching, placement: .navigationBarDrawer(displayMode: .always))
+            
             .toolbar {
                 
-                // 1. SINISTRA: Profilo (Si nasconde se isSearching è true)
+                // 1. SINISTRA: Profilo & Search Toggle
                 ToolbarItem(placement: .navigationBarLeading) {
-                    if !isSearching {
-                        Button(action: {
-                            AuthManager.shared.logout()
-                        }) {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.primary)
+                    HStack(spacing: 12) {
+                        if !isSearching {
+                            Button(action: {
+                                AuthManager.shared.logout()
+                            }) {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.primary)
+                            }
+                            .transition(.opacity)
+                            
+                            // Search Toggle Button
+                            Button(action: {
+                                withAnimation {
+                                    isSearchVisible.toggle()
+                                    if isSearchVisible {
+                                        isSearching = true
+                                    } else {
+                                        isSearching = false
+                                        searchText = ""
+                                    }
+                                }
+                            }) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.primary)
+                            }
                         }
-                        .transition(.opacity)
                     }
+                }
+                
+                // 2. CENTRO: Titolo Spendy
+                ToolbarItem(placement: .principal) {
+                    Text("Spendy")
+                        .font(.headline) // Adjust font style as needed, maybe custom font if used elsewhere
+                        .foregroundColor(.primary)
                 }
                 
                 // 3. DESTRA: Bottoni (Si nascondono se isSearching è true)
@@ -284,5 +307,16 @@ extension String {
             }
         }
         return self
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func searchableIf(_ condition: Bool, text: Binding<String>, isPresented: Binding<Bool>, placement: SearchFieldPlacement = .automatic) -> some View {
+        if condition {
+            self.searchable(text: text, isPresented: isPresented, placement: placement, prompt: "Cerca")
+        } else {
+            self
+        }
     }
 }
