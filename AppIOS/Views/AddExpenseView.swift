@@ -122,7 +122,7 @@ struct AddExpenseView: View {
             product: "Manual",
             startedDate: dateString,
             completedDate: dateString,
-            description: description,
+            userDescription: description,
             amount: finalAmount,
             category: category
         )

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import Combine
 
 @MainActor
 class ExpenseService: ObservableObject {
@@ -43,9 +44,38 @@ class ExpenseService: ObservableObject {
         modelContext?.delete(expense)
     }
     
+    func updateExpense(_ expense: Expense) async throws {
+        let body: [String: Any] = [
+            "id": expense.id ?? "",
+            "type": expense.type,
+            "product": expense.product,
+            "startedDate": expense.startedDate ?? "",
+            "completedDate": expense.completedDate ?? "",
+            "description": expense.userDescription,
+            "amount": expense.amount,
+            "fee": expense.fee ?? 0.0,
+            "currency": expense.currency ?? "EUR",
+            "state": expense.state ?? "",
+            "category": expense.category ?? ""
+        ]
+        
+        let _: Expense = try await APIClient.performRequest(endpoint: "/Expense/rest/expense/updateExpense", method: "POST", body: body, responseType: Expense.self)
+        
+        // Update local model if needed, but SwiftData objects are reference types and 'expense' passed in might be a copy or detached if not careful.
+        // Since we are passing 'updatedExpense' which is a copy from the view struct, we need to ensure the SwiftData context is updated if we want offline/local consistency immediately.
+        // However, 'expense' usage in DetailView might be the struct copy.
+        // Ideally we should save the context if we modified a managed object.
+        // But here we are sending to server.
+        // Let's assume re-fetching or simplistic flow for now.
+        // Wait, 'expense' in DetailView is 'let expense: Expense'. It's a class.
+        // If we modify it, we should save context.
+        // In this method we receive 'expense'. If it's a managed object, we can save context.
+        try? modelContext?.save()
+    }
+    
     // Le altre tue funzioni (stats, update, etc.) si convertono allo stesso modo usando APIClient.performRequest
     
-    func importCSV(fileURL: URL) async throws -> Bool {
+    func importCSV(data: Data, fileName: String = "expenses.csv") async throws -> Bool {
         let url = URL(string: "\(Constants.baseURL)/Expense/rest/expense/import")!
         let token = await AuthManager.shared.getAccessToken() ?? ""
         var request = URLRequest(url: url); request.httpMethod = "POST"
@@ -53,12 +83,11 @@ class ExpenseService: ObservableObject {
         let boundary = UUID().uuidString
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         
-        let fileData = try Data(contentsOf: fileURL)
         var body = Data()
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"expenses.csv\"\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: text/csv\r\n\r\n".data(using: .utf8)!)
-        body.append(fileData)
+        body.append(data)
         body.append("\r\n".data(using: .utf8)!)
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         request.httpBody = body
