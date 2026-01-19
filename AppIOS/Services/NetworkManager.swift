@@ -17,6 +17,11 @@ class NetworkManager {
         // 1. Prepare Request with current token
         let request = try prepareRequest(url: url, method: method, body: body)
         
+        print("🚀 [REQUEST] \(method) \(url.absoluteString)")
+        if let body = body {
+             print("📦 [BODY] \(body)")
+        }
+        
         // 2. Perform Request
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -45,6 +50,7 @@ class NetworkManager {
             return try handleResponse(data: data, response: response, responseType: responseType)
             
         } catch {
+            print("❌ [FAILURE] Request failed: \(error.localizedDescription)")
             throw error
         }
     }
@@ -77,8 +83,12 @@ class NetworkManager {
     
     private func handleResponse<T: Decodable>(data: Data, response: URLResponse, responseType: T.Type) throws -> T {
         guard let httpResponse = response as? HTTPURLResponse else {
+            print("❌ [ERROR] Invalid Response Type")
             throw URLError(.badServerResponse)
         }
+        
+        print("📥 [RESPONSE] \(httpResponse.statusCode) from \(httpResponse.url?.absoluteString ?? "unknown")")
+        // Optional: print("📄 [DATA] \(String(data: data, encoding: .utf8) ?? "Unable to decode data")")
         
         guard (200...299).contains(httpResponse.statusCode) else {
             // Also handle 401 here if it wasn't caught above?
@@ -90,9 +100,19 @@ class NetworkManager {
             throw URLError(.badServerResponse)
         }
         
-        // Handle Empty Response for String (e.g. "Success")
-        if responseType == String.self, data.isEmpty {
-           return "" as! T
+        // Handle String Response (JSON or Plain Text)
+        if responseType == String.self {
+            if data.isEmpty {
+                return "" as! T
+            }
+            // Try standard JSON decoding first (e.g. "some string")
+            if let decodedState = try? JSONDecoder().decode(T.self, from: data) {
+                return decodedState
+            }
+            // Fallback: Treat as plain text
+            if let plainText = String(data: data, encoding: .utf8) as? T {
+                return plainText
+            }
         }
         
         // Handle 204 No Content with expected array
