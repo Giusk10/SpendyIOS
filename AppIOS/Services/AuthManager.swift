@@ -1,28 +1,121 @@
 import Foundation
 import SwiftUI
 import Combine
+import LocalAuthentication
+
+enum AuthState {
+    case unauthenticated
+    case authenticated
+    case locked
+    case pinSetup
+}
 
 class AuthManager: ObservableObject {
     static let shared = AuthManager()
     
-    @Published var isAuthenticated: Bool = false
+    @Published var authState: AuthState = .unauthenticated
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     
     private let baseURL = "https://khondor03-Spendy.hf.space/Auth/rest/auth"
     private let keychainService = "com.appios.auth"
-    private let keychainAccount = "accessToken"
+    private let kAccessToken = "accessToken"
+    private let kRefreshToken = "refreshToken"
+    private let kUserPIN = "userPIN"
     
     private init() {
-        self.isAuthenticated = getToken() != nil
+        checkInitialState()
     }
     
-    func getToken() -> String? {
-        if let data = KeychainHelper.standard.read(service: keychainService, account: keychainAccount) {
-            return String(data: data, encoding: .utf8)
+    private func checkInitialState() {
+        // Cold Start Logic
+        if let _ = getRefreshToken() {
+            // We have a session, but app was killed.
+            // Go to Locked state immediately.
+            self.authState = .locked
+        } else {
+            self.authState = .unauthenticated
         }
-        return nil
     }
+    
+    // MARK: - Token Management
+    
+    func getAccessToken() -> String? {
+        return readKeychain(account: kAccessToken)
+    }
+    
+    func getRefreshToken() -> String? {
+        return readKeychain(account: kRefreshToken)
+    }
+    
+    func saveTokens(access: String, refresh: String) {
+        saveKeychain(data: access.data(using: .utf8)!, account: kAccessToken)
+        saveKeychain(data: refresh.data(using: .utf8)!, account: kRefreshToken)
+    }
+    
+    func clearTokens() {
+        deleteKeychain(account: kAccessToken)
+        deleteKeychain(account: kRefreshToken)
+    }
+    
+    // MARK: - PIN & Lock Management
+    
+    func hasPin() -> Bool {
+        return readKeychain(account: kUserPIN) != nil
+    }
+    
+    func savePin(_ pin: String) {
+        saveKeychain(data: pin.data(using: .utf8)!, account: kUserPIN)
+        // After saving PIN, we are fully authenticated
+        self.authState = .authenticated
+    }
+    
+    func unlock(with pin: String) -> Bool {
+        guard let storedPinData = KeychainHelper.standard.read(service: keychainService, account: kUserPIN),
+              let storedPin = String(data: storedPinData, encoding: .utf8) else {
+            return false
+        }
+        
+        if pin == storedPin {
+            self.authState = .authenticated
+            return true
+        }
+        return false
+    }
+    
+    func unlockWithBiometrics() {
+        let context = LAContext()
+        var error: NSError?
+        
+        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+            let reason = "Sblocca l'app per accedere ai tuoi dati"
+            
+            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, authenticationError in
+                DispatchQueue.main.async {
+                    if success {
+                        self.authState = .authenticated
+                    } else {
+                        // Failed, stay locked (user can use PIN)
+                        print("Biometric auth failed")
+                    }
+                }
+            }
+        }
+    }
+    
+    func lockApp() {
+        // Can only lock if we are authenticated or in PIN setup (though locking during PIN setup might be weird, usually we lock if we have a session)
+        // Actually, if we are .unauthenticated, we stay there.
+        // If we are .authenticated or .pinSetup (maybe?) or .locked, we go to .locked (if we have tokens).
+        
+        if getRefreshToken() != nil {
+            self.authState = .locked
+        } else {
+            self.authState = .unauthenticated
+        }
+    }
+    
+    // MARK: - Auth Actions
     
     func login(username: String, password: String) async -> Bool {
         guard let url = URL(string: "\(baseURL)/login") else { return false }
@@ -45,12 +138,36 @@ class AuthManager: ObservableObject {
             }
             
             if httpResponse.statusCode == 200 {
-                // Parse token
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let token = json["token"] as? String {
-                    saveToken(token)
-                    await MainActor.run { isAuthenticated = true }
+                   let accessToken = json["accessToken"] as? String,
+                   let refreshToken = json["refreshToken"] as? String {
+                    
+                    saveTokens(access: accessToken, refresh: refreshToken)
+                    
+                    await MainActor.run {
+                        if hasPin() {
+                            self.authState = .authenticated
+                        } else {
+                            self.authState = .pinSetup
+                        }
+                    }
                     return true
+                } else if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          let token = json["token"] as? String {
+                     // Fallback for previous API structure if it returns single token called "token"
+                     // We use it for both for now, or assume it's access.
+                     // But requirement says "restituisce map con entrambi i token".
+                     // Let's assume the backend IS updated. If not, this might break.
+                     // For backward compatibility/safety:
+                     saveTokens(access: token, refresh: token) // NOT IDEAL, but keeps it working if backend isn't ready.
+                     await MainActor.run {
+                         if hasPin() {
+                             self.authState = .authenticated
+                         } else {
+                             self.authState = .pinSetup
+                         }
+                     }
+                     return true
                 }
             } else {
                 await MainActor.run { errorMessage = "Login failed: \(httpResponse.statusCode)" }
@@ -64,63 +181,31 @@ class AuthManager: ObservableObject {
         return false
     }
     
-    func register(username: String, password: String, email: String, name: String, surname: String) async -> Bool {
-        guard let url = URL(string: "\(baseURL)/register") else { return false }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let body: [String: String] = [
-            "username": username,
-            "password": password,
-            "email": email,
-            "name": name,
-            "surname": surname
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
-        do {
-            await MainActor.run { isLoading = true; errorMessage = nil }
-            let (data, response) = try await URLSession.shared.data(for: request)
-            await MainActor.run { isLoading = false }
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                return false
-            }
-            
-            if httpResponse.statusCode == 200 {
-                // Assuming register returns token too, or just success. 
-                // If it returns token, save it. checking response...
-                // Spec says: Registrazione: POST /Auth/auth/register ...
-                // Doesn't explicitly say it returns token, but usually it does or user logs in. 
-                // I'll assume for now we might need to login after register or if it returns token I'll save it.
-                // Let's check if there is a token in response just in case
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let token = json["token"] as? String {
-                    saveToken(token)
-                    await MainActor.run { isAuthenticated = true }
-                }
-                return true
-            } else {
-                await MainActor.run { errorMessage = "Registration failed" }
-            }
-        } catch {
-            await MainActor.run { isLoading = false; errorMessage = error.localizedDescription }
-        }
-        return false
-    }
-    
     func logout() {
-        KeychainHelper.standard.delete(service: keychainService, account: keychainAccount)
+        clearTokens()
+        // Keep PIN? Usually yes, for convenience next time, or logic says "UserPIN" is persistent.
+        // User might want to clear PIN on logout though?
+        // Spec says: "Logout: AuthManager cancella Access e Refresh token... Stato .unauthenticated".
+        // Doesn't say delete PIN.
         DispatchQueue.main.async {
-            self.isAuthenticated = false
+            self.authState = .unauthenticated
         }
     }
     
-    private func saveToken(_ token: String) {
-        if let data = token.data(using: .utf8) {
-            KeychainHelper.standard.save(data, service: keychainService, account: keychainAccount)
+    // MARK: - Private Helpers
+    
+    private func readKeychain(account: String) -> String? {
+        if let data = KeychainHelper.standard.read(service: keychainService, account: account) {
+            return String(data: data, encoding: .utf8)
         }
+        return nil
+    }
+    
+    private func saveKeychain(data: Data, account: String) {
+        KeychainHelper.standard.save(data, service: keychainService, account: account)
+    }
+    
+    private func deleteKeychain(account: String) {
+        KeychainHelper.standard.delete(service: keychainService, account: account)
     }
 }

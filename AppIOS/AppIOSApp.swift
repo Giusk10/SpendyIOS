@@ -2,16 +2,18 @@ import SwiftUI
 
 @main
 struct AppIOSApp: App {
+    @Environment(\.scenePhase) var scenePhase
     @StateObject private var authManager = AuthManager.shared
     
     var body: some Scene {
         WindowGroup {
-            if authManager.isAuthenticated {
-                ContentView()
-                    .preferredColorScheme(.light) // <--- AGGIUNGI QUESTO
-            } else {
-                AuthView()
-            }
+            ContentView()
+                .preferredColorScheme(.light)
+                .onChange(of: scenePhase) { newPhase in
+                    if newPhase == .background {
+                        authManager.lockApp()
+                    }
+                }
         }
     }
 }
