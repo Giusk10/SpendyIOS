@@ -17,48 +17,57 @@ struct PinSetupView: View {
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // Background - Consistent with LockView
+             LinearGradient(colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.4)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                 .ignoresSafeArea()
+                 .overlay(.ultraThinMaterial)
             
-            VStack(spacing: 40) {
+             Color.black.opacity(0.4).ignoresSafeArea()
+            
+            VStack(spacing: 50) {
                 Spacer()
                 
-                VStack(spacing: 16) {
+                VStack(spacing: 20) {
                     Text("Imposta sicurezza")
-                        .font(.title)
-                        .fontWeight(.bold)
+                        .font(.system(size: 34, weight: .bold)) // Apple Title 1
                         .foregroundColor(.white)
+                        .shadow(radius: 5)
                     
                     Text(message)
                         .font(.body)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                 }
                 
-                HStack(spacing: 20) {
+                // PIN Dots
+                HStack(spacing: 25) {
                     ForEach(0..<6) { index in
                         let char = isConfirming ? confirmPin : pin
                         Circle()
-                            .fill(index < char.count ? Color.white : Color.gray.opacity(0.3))
-                            .frame(width: 20, height: 20)
+                            .fill(index < char.count ? Color.white : Color.white.opacity(0.2))
+                            .frame(width: 14, height: 14)
                             .overlay(
                                 Circle()
-                                    .stroke(Color.white, lineWidth: 1)
+                                    .stroke(Color.white.opacity(0.5), lineWidth: 1)
                             )
+                            .shadow(color: index < char.count ? .white.opacity(0.5) : .clear, radius: 8, x: 0, y: 0)
                     }
                 }
                 .shake($showError)
+                .padding(.bottom, 30)
                 
-                Spacer()
-                
-                LazyVGrid(columns: columns, spacing: 30) {
+                // Numpad
+                LazyVGrid(columns: columns, spacing: 25) {
                     ForEach(1...9, id: \.self) { number in
-                        NumberButton(number: "\(number)") {
+                        LiquidKeypadButton(number: "\(number)") {
                             addDigit("\(number)")
                         }
                     }
                     
-                    Color.clear.frame(width: 80, height: 80)
+                    Color.clear.frame(width: 75, height: 75)
                     
-                    NumberButton(number: "0") {
+                    LiquidKeypadButton(number: "0") {
                         addDigit("0")
                     }
                     
@@ -66,12 +75,13 @@ struct PinSetupView: View {
                         deleteDigit()
                     }) {
                         Image(systemName: "delete.left.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .frame(width: 80, height: 80)
+                            .font(.system(size: 24))
+                            .foregroundColor(.white.opacity(0.8))
+                            .frame(width: 75, height: 75)
                     }
                 }
                 .padding(.horizontal, 40)
+                .padding(.bottom, 20)
                 
                 Spacer()
             }
@@ -108,15 +118,13 @@ struct PinSetupView: View {
                 // Back to first entry
                 isConfirming = false
                 message = "Crea un PIN a 6 cifre"
-                pin = "" // Clear first pin too? Or keep it? Usually better to restart or just allow editing.
-                // To keep it simple, if they delete empty confirm, we go back to step 1 with empty pin.
+                pin = ""
             }
         }
         showError = false
     }
     
     private func startConfirmation() {
-        // Short delay or immediate
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             isConfirming = true
             message = "Conferma il tuo PIN"

@@ -14,87 +14,93 @@ struct LockView: View {
     
     var body: some View {
         ZStack {
-            // Background blur or color
-            Color.black.opacity(0.9)
+            // Background - Deep gradient or blurred image to enhance glass effect
+            LinearGradient(colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.4)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
+                .overlay(.ultraThinMaterial) // Frost effect base
             
-            VStack(spacing: 40) {
+            // Or just keep the app content blurred behind?
+            // User asked for "Liquid Glass", usually implies seeing what's behind or having a rich background.
+            // For a lock screen, usually we want a solid or heavily blurred background.
+            // Let's us a nice dark gradient background to make the "Glass" buttons pop.
+             Color.black.opacity(0.4).ignoresSafeArea()
+            
+            VStack(spacing: 50) {
                 Spacer()
                 
-                VStack(spacing: 16) {
+                VStack(spacing: 20) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.white)
+                        .font(.system(size: 50))
+                        .foregroundColor(.white.opacity(0.9))
+                        .shadow(radius: 5)
                     
-                    Text("App Bloccata")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                    Text("Inserisci codice")
+                        .font(.system(size: 22, weight: .regular))
                         .foregroundColor(.white)
-                    
-                    Text("Inserisci il PIN per sbloccare")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .shadow(radius: 5)
                 }
                 
-                // PIN Dots
-                HStack(spacing: 20) {
+                // PIN Dots - Liquid Style
+                HStack(spacing: 25) {
                     ForEach(0..<6) { index in
                         Circle()
-                            .fill(index < pin.count ? Color.white : Color.gray.opacity(0.3))
-                            .frame(width: 20, height: 20)
+                            .fill(index < pin.count ? Color.white : Color.white.opacity(0.2))
+                            .frame(width: 14, height: 14)
                             .overlay(
                                 Circle()
-                                    .stroke(Color.white, lineWidth: 1)
+                                    .stroke(Color.white.opacity(0.5), lineWidth: 1)
                             )
+                            .shadow(color: index < pin.count ? .white.opacity(0.5) : .clear, radius: 8, x: 0, y: 0)
                     }
                 }
                 .shake($showError)
+                .padding(.bottom, 30)
                 
-                Spacer()
-                
-                // Numpad
-                LazyVGrid(columns: columns, spacing: 30) {
+                // Numpad - Liquid Glass Buttons
+                LazyVGrid(columns: columns, spacing: 25) {
                     ForEach(1...9, id: \.self) { number in
-                        NumberButton(number: "\(number)") {
+                        LiquidKeypadButton(number: "\(number)") {
                             addDigit("\(number)")
                         }
                     }
                     
-                    // Empty space for alignment
-                    Color.clear
-                        .frame(width: 80, height: 80)
+                    // FaceID / Empty
+                    Group {
+                        Button(action: {
+                            authManager.unlockWithBiometrics()
+                        }) {
+                            Image(systemName: "faceid")
+                                .font(.system(size: 28))
+                                .foregroundColor(.white)
+                                .frame(width: 75, height: 75)
+                        }
+                    }
                     
-                    NumberButton(number: "0") {
+                    LiquidKeypadButton(number: "0") {
                         addDigit("0")
                     }
                     
+                    // Delete
                     Button(action: {
                         deleteDigit()
                     }) {
-                        Image(systemName: "delete.left.fill")
-                            .font(.title)
+                        Text("Elimina")
+                            .font(.system(size: 16, weight: .regular))
                             .foregroundColor(.white)
-                            .frame(width: 80, height: 80)
+                            .frame(width: 75, height: 75)
                     }
                 }
                 .padding(.horizontal, 40)
-                                
-                Button(action: {
-                    authManager.unlockWithBiometrics()
-                }) {
-                    HStack {
-                        Image(systemName: "faceid")
-                        Text("Usa FaceID/TouchID")
-                    }
-                    .foregroundColor(.blue)
-                    .padding(.top, 20)
-                }
+                .padding(.bottom, 20)
                 
                 Spacer()
             }
         }
         .onAppear {
-            authManager.unlockWithBiometrics()
+             // Small delay to allow UI to settle before prompting FaceID
+             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                 authManager.unlockWithBiometrics()
+             }
         }
     }
     
@@ -116,16 +122,50 @@ struct LockView: View {
     
     private func verifyPin() {
         if authManager.unlock(with: pin) {
-            // Success handled by AuthManager state change
             pin = ""
         } else {
-            // Failure
             showError = true
             pin = ""
-            
-            // Haptic feedack
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.error)
+        }
+    }
+}
+
+// Reusable Liquid Glass Button
+struct LiquidKeypadButton: View {
+    let number: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                // Liquid Glass Background
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.1))
+                            .blur(radius: 0)
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.6), .white.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
+                    .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
+                
+                Text(number)
+                    .font(.system(size: 34, weight: .regular))
+                    .foregroundColor(.white)
+            }
+            .frame(width: 75, height: 75)
         }
     }
 }
@@ -161,29 +201,11 @@ struct ShakeModifier: ViewModifier {
                      withAnimation(.default) {
                         animatableData = 1
                     }
-                    // Reset after animation
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         animatableData = 0
                         trigger = false
                     }
                 }
             }
-    }
-}
-
-struct NumberButton: View {
-    let number: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(number)
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-                .frame(width: 80, height: 80)
-                .background(Color.white.opacity(0.1))
-                .clipShape(Circle())
-        }
     }
 }
