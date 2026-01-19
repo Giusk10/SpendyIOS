@@ -124,7 +124,7 @@ class AnalyticsViewModel: ObservableObject {
         guard let yearInt = Int(year) else { return }
         
         Task {
-            if let amounts = try? await ExpenseService.shared.getMonthlyStats(year: yearInt) {
+            if let amounts = await ExpenseService.shared.getMonthlyStats(year: yearInt) {
                 await MainActor.run {
                     self.monthlyData = processMonthlyStats(amounts, year: yearInt)
                 }

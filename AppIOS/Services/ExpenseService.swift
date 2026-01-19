@@ -5,7 +5,7 @@ import Combine
 class ExpenseService: ObservableObject {
     static let shared = ExpenseService()
     
-    private let baseURL = "https://khondor03-Spendy.hf.space/Expense/rest/expense"
+    private let baseURL = "\(Constants.baseURL)/Expense/rest/expense"
     
     private init() {}
     

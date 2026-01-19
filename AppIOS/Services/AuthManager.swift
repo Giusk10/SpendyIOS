@@ -17,7 +17,7 @@ class AuthManager: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     
-    private let baseURL = "https://khondor03-Spendy.hf.space/Auth/rest/auth"
+    private let baseURL = "\(Constants.baseURL)/Auth/rest/auth"
     private let keychainService = "com.appios.auth"
     private let kAccessToken = "accessToken"
     private let kRefreshToken = "refreshToken"
@@ -154,12 +154,7 @@ class AuthManager: ObservableObject {
                     return true
                 } else if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                           let token = json["token"] as? String {
-                     // Fallback for previous API structure if it returns single token called "token"
-                     // We use it for both for now, or assume it's access.
-                     // But requirement says "restituisce map con entrambi i token".
-                     // Let's assume the backend IS updated. If not, this might break.
-                     // For backward compatibility/safety:
-                     saveTokens(access: token, refresh: token) // NOT IDEAL, but keeps it working if backend isn't ready.
+                     saveTokens(access: token, refresh: token)
                      await MainActor.run {
                          if hasPin() {
                              self.authState = .authenticated
@@ -177,6 +172,55 @@ class AuthManager: ObservableObject {
                 isLoading = false
                 errorMessage = error.localizedDescription
             }
+        }
+        return false
+    }
+    
+    func register(username: String, password: String, email: String, name: String, surname: String) async -> Bool {
+        guard let url = URL(string: "\(baseURL)/register") else { return false }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: String] = [
+            "username": username,
+            "password": password,
+            "email": email,
+            "name": name,
+            "surname": surname
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        do {
+            await MainActor.run { isLoading = true; errorMessage = nil }
+            let (data, response) = try await URLSession.shared.data(for: request)
+            await MainActor.run { isLoading = false }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return false
+            }
+            
+            if httpResponse.statusCode == 200 {
+                // If register returns tokens, we could login immediately.
+                // Assuming it works similar to login or just returns success.
+                // For now, let's try to parse tokens too just in case.
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let accessToken = json["accessToken"] as? String,
+                       let refreshToken = json["refreshToken"] as? String {
+                        saveTokens(access: accessToken, refresh: refreshToken)
+                        await MainActor.run { self.authState = .pinSetup } // Go to PIN setup
+                    } else if let token = json["token"] as? String {
+                        saveTokens(access: token, refresh: token)
+                        await MainActor.run { self.authState = .pinSetup }
+                    }
+                }
+                return true
+            } else {
+                await MainActor.run { errorMessage = "Registration failed" }
+            }
+        } catch {
+            await MainActor.run { isLoading = false; errorMessage = error.localizedDescription }
         }
         return false
     }

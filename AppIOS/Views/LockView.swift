@@ -156,9 +156,9 @@ struct ShakeModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .modifier(ShakeEffect(animatableData: animatableData))
-            .onChange(of: trigger) { newValue in
+            .onChange(of: trigger) { _, newValue in
                 if newValue {
-                    withAnimation(.default) {
+                     withAnimation(.default) {
                         animatableData = 1
                     }
                     // Reset after animation

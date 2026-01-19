@@ -9,7 +9,7 @@ class NetworkManager {
     
     private init() {}
     
-    private let authBaseURL = "https://khondor03-Spendy.hf.space/Auth/rest/auth"
+    private let authBaseURL = "\(Constants.baseURL)/Auth/rest/auth"
     
     // MARK: - Generic Request
     

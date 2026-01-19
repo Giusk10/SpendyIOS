@@ -9,7 +9,7 @@ struct AppIOSApp: App {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(.light)
-                .onChange(of: scenePhase) { newPhase in
+                .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .background {
                         authManager.lockApp()
                     }
