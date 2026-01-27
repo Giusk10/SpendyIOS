@@ -86,6 +86,8 @@ class AuthManager: ObservableObject {
         return false
     }
 
+    @Published var isBiometricAuthenticationInProgress: Bool = false
+
     func unlockWithBiometrics() {
         let context = LAContext()
         var error: NSError?
@@ -93,10 +95,15 @@ class AuthManager: ObservableObject {
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
             let reason = "Sblocca l'app per accedere ai tuoi dati"
 
+            DispatchQueue.main.async {
+                self.isBiometricAuthenticationInProgress = true
+            }
+
             context.evaluatePolicy(
                 .deviceOwnerAuthenticationWithBiometrics, localizedReason: reason
             ) { success, authenticationError in
                 DispatchQueue.main.async {
+                    self.isBiometricAuthenticationInProgress = false
                     if success {
                         self.authState = .authenticated
                     } else {
