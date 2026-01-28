@@ -8,7 +8,7 @@ enum TabBarItem: String, CaseIterable {
     var iconName: String {
         switch self {
         case .home: return "house.fill"
-        case .upload: return "plus.circle.fill"
+        case .upload: return "arrow.up.doc.fill"
         case .analytics: return "chart.pie.fill"
         }
     }

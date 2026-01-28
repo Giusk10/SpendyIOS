@@ -20,10 +20,16 @@ struct CustomTabBar: View {
                         if tab == .upload {
                             Image(systemName: tab.iconName)
                                 .font(.system(size: 32, weight: .bold))  // Larger for upload
-                                .foregroundStyle(Color.spendyGradient)
+                                .foregroundStyle(
+                                    selectedTab == tab
+                                        ? AnyShapeStyle(Color.spendyGradient)
+                                        : AnyShapeStyle(Color.spendySecondaryText)
+                                )
                                 .scaleEffect(selectedTab == tab ? 1.1 : 1.0)
                                 .shadow(
-                                    color: Color.spendyAccent.opacity(0.3), radius: 8, x: 0, y: 4)
+                                    color: selectedTab == tab
+                                        ? Color.spendyAccent.opacity(0.3) : Color.clear, radius: 8,
+                                    x: 0, y: 4)
                         } else {
                             Image(systemName: tab.iconName)
                                 .font(.system(size: 24, weight: .medium))
@@ -41,7 +47,6 @@ struct CustomTabBar: View {
             }
         }
         .padding(.top, 10)
-        .padding(.bottom, 20)
         .background(
             ZStack {
                 Rectangle()
@@ -57,6 +62,6 @@ struct CustomTabBar: View {
             }
         )
         // Ensure it sits at the bottom of the screen including safe area
-        .frame(height: 80)
+        .frame(height: 60)
     }
 }
