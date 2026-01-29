@@ -7,61 +7,29 @@ struct CustomTabBar: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(TabBarItem.allCases, id: \.self) { tab in
-                Spacer()
-
                 Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        selectedTab = tab
-                    }
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    selectedTab = tab
+                    let generator = UIImpactFeedbackGenerator(style: .light)
                     generator.impactOccurred()
                 }) {
-                    VStack(spacing: 4) {
-                        if tab == .upload {
-                            Image(systemName: tab.iconName)
-                                .font(.system(size: 32, weight: .bold))  // Larger for upload
-                                .foregroundStyle(
-                                    selectedTab == tab
-                                        ? AnyShapeStyle(Color.spendyGradient)
-                                        : AnyShapeStyle(Color.spendySecondaryText)
-                                )
-                                .scaleEffect(selectedTab == tab ? 1.1 : 1.0)
-                                .shadow(
-                                    color: selectedTab == tab
-                                        ? Color.spendyAccent.opacity(0.3) : Color.clear, radius: 8,
-                                    x: 0, y: 4)
-                        } else {
-                            Image(systemName: tab.iconName)
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundColor(
-                                    selectedTab == tab ? .spendyPrimary : .spendySecondaryText
-                                )
-                                .scaleEffect(selectedTab == tab ? 1.2 : 1.0)
-                        }
+                    VStack(spacing: 2) {
+                        Image(systemName: selectedTab == tab ? tab.iconName : tab.iconNameOutline)
+                            .font(.system(size: 40, weight: .medium))
+                            .foregroundColor(
+                                selectedTab == tab ? .spendyPrimary : .spendyTertiaryText)
                     }
-                    .frame(width: 50, height: 50)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
                 }
                 .buttonStyle(.plain)
-
-                Spacer()
             }
         }
-        .padding(.top, 10)
+        .padding(.horizontal, 24)
         .background(
-            ZStack {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .ignoresSafeArea()
-
-                // Top border line for subtle separation
-                VStack {
-                    Divider()
-                        .background(Color.black.opacity(0.1))
-                    Spacer()
-                }
-            }
+            Rectangle()
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: -2)
+                .ignoresSafeArea()
         )
-        // Ensure it sits at the bottom of the screen including safe area
-        .frame(height: 60)
     }
 }

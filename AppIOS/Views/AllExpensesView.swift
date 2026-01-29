@@ -100,7 +100,7 @@ struct AllExpensesView: View {
                             }
                         }
                         .padding(.top, 8)
-                        .padding(.bottom, 100)
+                        .padding(.bottom, 60)
                     }
                     .refreshable {
                         viewModel.fetchExpenses()

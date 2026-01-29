@@ -40,7 +40,7 @@ struct AnalyticsView: View {
                         }
                     }
                     .padding(.vertical, 20)
-                    .padding(.bottom, 100)
+                    .padding(.bottom, 60)
                 }
             }
             .navigationTitle("Analytics")

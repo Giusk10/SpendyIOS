@@ -57,7 +57,7 @@ struct DashboardView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
-                    .padding(.bottom, 100)  // Adjusted for Custom Tab Bar
+                    .padding(.bottom, 60)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
