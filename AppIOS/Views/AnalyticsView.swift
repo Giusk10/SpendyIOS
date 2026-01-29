@@ -7,7 +7,6 @@ struct AnalyticsView: View {
     @State private var selectedYear = "2025"
     @State private var selectedFilter = "Tutte le spese"
     @State private var selectedMonth: String? = nil
-    @State private var animateContent = false
 
     var body: some View {
         NavigationView {
@@ -23,20 +22,12 @@ struct AnalyticsView: View {
                             errorView(error)
                         } else {
                             filterSection
-                                .opacity(animateContent ? 1 : 0)
-                                .offset(y: animateContent ? 0 : 20)
 
                             summaryCardsSection
-                                .opacity(animateContent ? 1 : 0)
-                                .offset(y: animateContent ? 0 : 30)
 
                             chartSection
-                                .opacity(animateContent ? 1 : 0)
-                                .offset(y: animateContent ? 0 : 40)
 
                             categoriesSection
-                                .opacity(animateContent ? 1 : 0)
-                                .offset(y: animateContent ? 0 : 50)
                         }
                     }
                     .padding(.vertical, 20)
@@ -48,9 +39,6 @@ struct AnalyticsView: View {
             .onAppear {
                 viewModel.loadData()
                 viewModel.fetchMonthlyStats(year: selectedYear)
-                withAnimation(.easeOut(duration: 0.6)) {
-                    animateContent = true
-                }
             }
             .refreshable {
                 viewModel.loadData()

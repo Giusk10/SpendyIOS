@@ -3,7 +3,6 @@ import SwiftUI
 struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
     @State private var showingDeleteAlert = false
-    @State private var animateBalance = false
 
     enum TransactionFilter: String, CaseIterable {
         case all = "Tutte"
@@ -63,9 +62,6 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 viewModel.fetchExpenses()
-                withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
-                    animateBalance = true
-                }
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -198,8 +194,6 @@ struct DashboardView: View {
             }
             .frame(height: 200)
         }
-        .opacity(animateBalance ? 1 : 0)
-        .offset(y: animateBalance ? 0 : 20)
     }
 
     private var filterSection: some View {

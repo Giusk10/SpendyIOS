@@ -12,24 +12,35 @@ struct CustomTabBar: View {
                     let generator = UIImpactFeedbackGenerator(style: .light)
                     generator.impactOccurred()
                 }) {
-                    VStack(spacing: 2) {
+                    VStack(spacing: 4) {
                         Image(systemName: selectedTab == tab ? tab.iconName : tab.iconNameOutline)
-                            .font(.system(size: 40, weight: .medium))
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundColor(
+                                selectedTab == tab ? .spendyPrimary : .spendyTertiaryText)
+
+                        Text(tab.title)
+                            .font(.system(size: 10, weight: .medium))
                             .foregroundColor(
                                 selectedTab == tab ? .spendyPrimary : .spendyTertiaryText)
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 44)
+                    .frame(height: 50)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
         .background(
-            Rectangle()
-                .fill(Color.white)
-                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: -2)
-                .ignoresSafeArea()
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color.spendySecondaryText.opacity(0.1))
+                    .frame(height: 0.5)
+                Rectangle()
+                    .fill(Color.white)
+            }
+            .ignoresSafeArea()
         )
     }
 }
