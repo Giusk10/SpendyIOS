@@ -1,25 +1,25 @@
-import Foundation
 import Combine
+import Foundation
 
 @MainActor
 class DashboardViewModel: ObservableObject {
     @Published var expenses: [Expense] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
-    
+
     private var cancellables = Set<AnyCancellable>()
-    
+
     func fetchExpenses() {
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let fetchedExpenses = try await ExpenseService.shared.fetchExpenses()
                 // Sort by date descending
-                self.expenses = fetchedExpenses.sorted { 
-                    ($0.startedDate ?? "") > ($1.startedDate ?? "")
-                }
+                self.expenses = fetchedExpenses.sorted(by: {
+                    ($0.date ?? Date.distantPast) > ($1.date ?? Date.distantPast)
+                })
                 isLoading = false
             } catch {
                 isLoading = false
@@ -27,7 +27,7 @@ class DashboardViewModel: ObservableObject {
             }
         }
     }
-    
+
     func deleteExpense(_ expense: Expense) {
         Task {
             do {
@@ -40,7 +40,7 @@ class DashboardViewModel: ObservableObject {
             }
         }
     }
-    
+
     func deleteAllExpenses() {
         Task {
             do {

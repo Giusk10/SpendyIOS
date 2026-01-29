@@ -2,42 +2,15 @@ import SwiftUI
 
 struct AllExpensesView: View {
     @StateObject private var viewModel = DashboardViewModel()
+
+    // MARK: - Local State
     @State private var searchText = ""
     @State private var selectedFilter: DashboardView.TransactionFilter = .all
+
+    // Cache per evitare di ricalcolare i filtri ad ogni frame
+    @State private var cachedFilteredExpenses: [Expense] = []
+
     @Environment(\.dismiss) private var dismiss
-
-    var filteredExpenses: [Expense] {
-        let expenses = viewModel.expenses
-        let filteredByType: [Expense]
-
-        switch selectedFilter {
-        case .all:
-            filteredByType = expenses
-        case .income:
-            filteredByType = expenses.filter { $0.amount > 0 }
-        case .expenses:
-            filteredByType = expenses.filter { $0.amount < 0 }
-        }
-
-        let filtered: [Expense]
-        if searchText.isEmpty {
-            filtered = filteredByType
-        } else {
-            filtered = filteredByType.filter {
-                $0.userDescription.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-
-        // Ordina dalla più recente alla meno recente
-        return filtered.sorted { expense1, expense2 in
-            guard let date1 = expense1.startedDate?.toDate(),
-                let date2 = expense2.startedDate?.toDate()
-            else {
-                return false
-            }
-            return date1 > date2
-        }
-    }
 
     var body: some View {
         ZStack {
@@ -45,67 +18,135 @@ struct AllExpensesView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
+                // Filtri Superiori
                 filterChips
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
                     .background(Color.white)
+                    .zIndex(1)
 
+                // Banner Errori
                 if let errorMessage = viewModel.errorMessage {
                     errorBanner(errorMessage)
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
+                        .transition(.opacity)
                 }
 
-                if filteredExpenses.isEmpty {
+                // Lista o Empty State
+                if cachedFilteredExpenses.isEmpty && !viewModel.expenses.isEmpty
+                    && searchText.isEmpty
+                {
+                    if selectedFilter != .all {
+                        emptyState
+                    } else {
+                        ProgressView()
+                            .padding(.top, 50)
+                    }
+                } else if cachedFilteredExpenses.isEmpty {
                     emptyState
                 } else {
-                    List {
-                        ForEach(filteredExpenses) { expense in
-                            ZStack {
-                                NavigationLink(destination: ExpenseDetailView(expense: expense)) {
-                                    EmptyView()
-                                }
-                                .opacity(0)
-
-                                ExpenseRow(expense: expense)
-                            }
-                            .padding(.vertical, 4)
-                            .background(Color.white)
-                            .cornerRadius(16)
-                            .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
-                            .listRowSeparator(.hidden)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    viewModel.deleteExpense(expense)
-                                } label: {
-                                    Label("Elimina", systemImage: "trash")
-                                }
-                                .tint(.spendyRed)
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
-                    .background(Color.spendyBackground)
-                    .scrollContentBackground(.hidden)
-                    .refreshable {
-                        viewModel.fetchExpenses()
-                    }
+                    expenseList
                 }
             }
         }
         .navigationTitle("Tutte le spese")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(
-            text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
             prompt: "Cerca spese"
         )
+        // MARK: - Reactive Logic
         .onAppear {
+            viewModel.fetchExpenses()
+            applyFilters()
+        }
+        // SINTASSI iOS 17+ AGGIORNATA
+        .onChange(of: searchText) { _, _ in applyFilters() }
+        .onChange(of: selectedFilter) { _, _ in applyFilters() }
+        .onChange(of: viewModel.expenses) { _, _ in applyFilters() }
+    }
+
+    // MARK: - Optimized List
+    private var expenseList: some View {
+        List {
+            ForEach(cachedFilteredExpenses) { expense in
+                ZStack {
+                    NavigationLink(destination: ExpenseDetailView(expense: expense)) {
+                        EmptyView()
+                    }
+                    .opacity(0)
+
+                    ExpenseRow(expense: expense)
+                }
+                .padding(.vertical, 4)
+                .background(Color.white)
+                .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                .listRowSeparator(.hidden)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        deleteExpense(expense)
+                    } label: {
+                        Label("Elimina", systemImage: "trash")
+                    }
+                    .tint(.spendyRed)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .background(Color.spendyBackground)
+        .scrollContentBackground(.hidden)
+        .refreshable {
             viewModel.fetchExpenses()
         }
     }
 
+    // MARK: - Logic Helpers
+    private func applyFilters() {
+        let expenses = viewModel.expenses
+        var result: [Expense]
+
+        switch selectedFilter {
+        case .all:
+            result = expenses
+        case .income:
+            result = expenses.filter { $0.amount > 0 }
+        case .expenses:
+            result = expenses.filter { $0.amount < 0 }
+        }
+
+        if !searchText.isEmpty {
+            result = result.filter {
+                $0.userDescription.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+
+        result.sort { expense1, expense2 in
+            let date1 = expense1.date ?? Date.distantPast
+            let date2 = expense2.date ?? Date.distantPast
+            return date1 > date2
+        }
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            self.cachedFilteredExpenses = result
+        }
+    }
+
+    private func deleteExpense(_ expense: Expense) {
+        if let index = cachedFilteredExpenses.firstIndex(of: expense) {
+            withAnimation {
+                // FIX: Scartiamo il risultato restituito da remove(at:) per evitare il warning
+                _ = cachedFilteredExpenses.remove(at: index)
+            }
+        }
+        viewModel.deleteExpense(expense)
+    }
+
+    // MARK: - Subviews
     private var filterChips: some View {
         HStack(spacing: 10) {
             ForEach(DashboardView.TransactionFilter.allCases, id: \.self) { filter in
@@ -113,9 +154,7 @@ struct AllExpensesView: View {
                     title: filter.rawValue,
                     isSelected: selectedFilter == filter,
                     action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            selectedFilter = filter
-                        }
+                        selectedFilter = filter
                     }
                 )
             }
@@ -167,29 +206,5 @@ struct AllExpensesView: View {
 
             Spacer()
         }
-    }
-}
-
-extension String {
-    func toDate() -> Date? {
-        let parser = DateFormatter()
-        parser.locale = Locale(identifier: "en_US_POSIX")
-        let formats = [
-            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
-            "yyyy-MM-dd'T'HH:mm:ssZ",
-            "yyyy-MM-dd'T'HH:mm:ss",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd",
-            "dd/MM/yyyy",
-            "dd-MM-yyyy",
-        ]
-
-        for format in formats {
-            parser.dateFormat = format
-            if let date = parser.date(from: self) {
-                return date
-            }
-        }
-        return nil
     }
 }

@@ -426,7 +426,7 @@ struct ExpenseRow: View {
                     .foregroundColor(.spendyText)
                     .lineLimit(1)
 
-                if let date = expense.startedDate {
+                if let date = expense.startedDateString {
                     Text(date.formattedDateWithTime())
                         .font(.caption)
                         .foregroundColor(.spendySecondaryText)

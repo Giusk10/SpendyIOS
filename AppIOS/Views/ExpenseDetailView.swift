@@ -247,7 +247,7 @@ struct ExpenseDetailView: View {
         }
         product = expense.product
 
-        if let dateStr = expense.startedDate {
+        if let dateStr = expense.startedDateString {
             startedDate = parseDate(from: dateStr) ?? Date()
         }
     }
@@ -278,15 +278,21 @@ struct ExpenseDetailView: View {
     private func updateExpense() {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let dateString = formatter.string(from: startedDate)
 
-        var updatedExpense = expense
-        updatedExpense.userDescription = description
-        updatedExpense.amount = amount
-        updatedExpense.startedDate = formatter.string(from: startedDate)
-        updatedExpense.completedDate = formatter.string(from: startedDate)
-        updatedExpense.category = category
-        updatedExpense.type = type
-        updatedExpense.product = product
+        let updatedExpense = Expense(
+            id: expense.id,
+            type: type,
+            product: product,
+            startedDate: dateString,
+            completedDate: dateString,
+            description: description,
+            amount: amount,
+            fee: expense.fee,
+            currency: expense.currency,
+            state: expense.state,
+            category: category
+        )
 
         Task {
             do {
