@@ -51,7 +51,7 @@ struct PinSetupView: View {
                             )
                             .frame(width: 90, height: 90)
 
-                        Image(systemName: isConfirming ? "lock.rotation" : "lock.badge.plus")
+                        Image(systemName: isConfirming ? "lock.rotation" : "lock.fill")
                             .font(.system(size: 36, weight: .medium))
                             .foregroundStyle(Color.spendyGradient)
                     }
