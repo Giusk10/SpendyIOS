@@ -3,6 +3,7 @@ import SwiftUI
 struct AddExpenseView: View {
     @Environment(\.dismiss) var dismiss
 
+    @State private var isExpense: Bool = true  // true = Uscita, false = Entrata
     @State private var description: String = ""
     @State private var amount: String = ""
     @State private var date: Date = Date()
@@ -19,12 +20,16 @@ struct AddExpenseView: View {
                     .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 32) {
-                        // Header con Importo
+                    VStack(spacing: 24) {
+
+                        // 1. Amount Card using standard rounded style
                         amountSection
 
-                        VStack(spacing: 16) {
-                            // Form Dettagli
+                        // 2. Transaction Type Toggle (Below Amount)
+                        transactionTypeSelector
+
+                        // 3. Details and Save
+                        VStack(spacing: 24) {
                             detailsSection
 
                             if let error = errorMessage {
@@ -33,95 +38,148 @@ struct AddExpenseView: View {
 
                             saveButton
                         }
+                        .padding(.horizontal, 24)
                     }
-                    .padding(24)
+                    .padding(.top, 20)
+                    .padding(.bottom, 24)
                 }
             }
-            .navigationTitle("Nuova Spesa")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
 
-    private var amountSection: some View {
-        VStack(spacing: 12) {
-            Text("QUANTO HAI SPESO?")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.spendySecondaryText)
-                .tracking(1.2)
+    // MARK: - Components
 
-            HStack(alignment: .center, spacing: 12) {
+    private var transactionTypeSelector: some View {
+        HStack(spacing: 16) {
+            TransactionTypeButton(
+                title: "Uscita",
+                icon: "arrow.up.right",
+                isSelected: isExpense,
+                action: { isExpense = true }
+            )
+
+            TransactionTypeButton(
+                title: "Entrata",
+                icon: "arrow.down.left",
+                isSelected: !isExpense,
+                action: { isExpense = false }
+            )
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private var amountSection: some View {
+        VStack(spacing: 8) {
+            Text("Importo")
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.spendySecondaryText)
+
+            HStack(alignment: .center, spacing: 8) {
                 Text("€")
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .foregroundColor(.spendyText)
 
                 TextField("0.00", text: $amount)
-                    .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .font(.system(size: 56, weight: .bold, design: .rounded))
                     .foregroundColor(.spendyText)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.leading)
                     .fixedSize()
             }
         }
-        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+        .background(Color.white)
+        .cornerRadius(24)
+        .shadow(color: Color.black.opacity(0.03), radius: 15, x: 0, y: 5)
+        .padding(.horizontal, 24)
     }
 
     private var detailsSection: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 20) {
+
             // Descrizione
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Descrizione", systemImage: "pencil.line")
-                    .font(.system(size: 14, weight: .semibold))
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Descrizione")
+                    .font(.subheadline)
                     .foregroundColor(.spendySecondaryText)
 
-                TextField("Cosa hai acquistato?", text: $description)
+                TextField("Es. Spesa al supermercato", text: $description)
                     .font(.body)
                     .padding(16)
                     .background(Color.spendyBackground)
                     .cornerRadius(12)
             }
-            .padding(20)
-
-            Divider().padding(.horizontal, 20)
 
             // Data e Ora
-            HStack {
-                Image(systemName: "calendar")
-                    .font(.system(size: 20))
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Data e Ora")
+                    .font(.subheadline)
                     .foregroundColor(.spendySecondaryText)
 
-                Spacer(minLength: 16)
+                HStack(spacing: 12) {
+                    // Date Part
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar")
+                            .foregroundColor(.spendyPrimary)
+                        DatePicker("", selection: $date, displayedComponents: .date)
+                            .datePickerStyle(.compact)
+                            .labelsHidden()
+                            .accentColor(.spendyPrimary)
+                    }
 
-                DatePicker("", selection: $date)
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
-                    .accentColor(.spendyPrimary)
-            }
-            .padding(20)
+                    Spacer()
 
-            Divider().padding(.horizontal, 20)
-
-            // Tipo
-            HStack {
-                Image(systemName: "creditcard")
-                    .font(.system(size: 20))
-                    .foregroundColor(.spendySecondaryText)
-
-                Spacer(minLength: 16)
-
-                Picker("Tipo", selection: $type) {
-                    ForEach(expenseTypes, id: \.self) { expenseType in
-                        Text(expenseType)
-                            .tag(expenseType)
+                    // Time Part
+                    HStack(spacing: 8) {
+                        Image(systemName: "clock.fill")
+                            .foregroundColor(.spendyPrimary)
+                        DatePicker("", selection: $date, displayedComponents: .hourAndMinute)
+                            .datePickerStyle(.compact)
+                            .labelsHidden()
+                            .accentColor(.spendyPrimary)
                     }
                 }
-                .pickerStyle(.menu)
-                .tint(.spendyPrimary)
-                .labelsHidden()
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .padding(12)
+                .background(Color.spendyBackground)
+                .cornerRadius(12)
             }
-            .padding(20)
+
+            // Tipo
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Metodo")
+                    .font(.subheadline)
+                    .foregroundColor(.spendySecondaryText)
+
+                HStack {
+                    // Dynamic icon based on selection
+                    Image(systemName: type == "Carta" ? "creditcard.fill" : "banknote.fill")
+                        .foregroundColor(.spendyPrimary)
+                        .font(.system(size: 18))
+
+                    Picker("Tipo", selection: $type) {
+                        ForEach(expenseTypes, id: \.self) { expenseType in
+                            HStack {
+                                Text(expenseType)
+                            }
+                            .tag(expenseType)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(.spendyPrimary)
+                    .labelsHidden()
+
+                    Spacer()
+                }
+                .padding(12)
+                .background(Color.spendyBackground)
+                .cornerRadius(12)
+            }
         }
+        .padding(24)
         .background(Color.white)
         .cornerRadius(24)
         .shadow(color: Color.black.opacity(0.03), radius: 15, x: 0, y: 5)
@@ -129,7 +187,7 @@ struct AddExpenseView: View {
 
     private func errorBanner(_ message: String) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.circle.fill")
+            Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.spendyRed)
             Text(message)
                 .font(.subheadline)
@@ -148,9 +206,9 @@ struct AddExpenseView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                 } else {
-                    Image(systemName: "plus.circle.fill")
+                    Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 18, weight: .bold))
-                    Text("Aggiungi Spesa")
+                    Text(isExpense ? "Salva Uscita" : "Salva Entrata")
                         .font(.headline)
                         .fontWeight(.bold)
                 }
@@ -163,7 +221,7 @@ struct AddExpenseView: View {
                     ? AnyView(Color.spendyGradient)
                     : AnyView(Color.gray.opacity(0.3))
             )
-            .cornerRadius(18)
+            .cornerRadius(28)
             .shadow(
                 color: canSave && !isLoading ? Color.spendyPrimary.opacity(0.3) : Color.clear,
                 radius: 10, x: 0, y: 5)
@@ -185,7 +243,8 @@ struct AddExpenseView: View {
         let dateString = formatter.string(from: date)
 
         let amountValue = Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0
-        let finalAmount = -abs(amountValue)
+        // Logic: Uscita (isExpense) -> Negative, Entrata (!isExpense) -> Positive
+        let finalAmount = isExpense ? -abs(amountValue) : abs(amountValue)
 
         let expense = Expense(
             type: type,
@@ -207,9 +266,44 @@ struct AddExpenseView: View {
             } catch {
                 await MainActor.run {
                     isLoading = false
-                    errorMessage = "Errore nel salvataggio: \(error.localizedDescription)"
+                    errorMessage = "Errore: \(error.localizedDescription)"
                 }
             }
         }
+    }
+}
+
+// Custom Toggle Button matching Dashboard FilterChip style
+struct TransactionTypeButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .bold))
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(isSelected ? .white : .spendySecondaryText)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)  // Make buttons expand equally
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(Color.spendyGradient)
+                } else {
+                    Capsule()
+                        .fill(Color.white)
+                        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
