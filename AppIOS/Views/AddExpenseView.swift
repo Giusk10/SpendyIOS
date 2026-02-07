@@ -13,79 +13,81 @@ struct AddExpenseView: View {
 
     let expenseTypes = ["Carta", "Contanti"]
 
+    @Namespace private var namespace
+
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // MARK: - Background
-                Color.spendyBackground
-                    .ignoresSafeArea()
+        ZStack {
+            // MARK: - Background
+            Color.spendyBackground
+                .ignoresSafeArea()
 
-                // Mesh Gradient Overlay for premium feel
-                Color.spendyMeshGradient
-                    .opacity(0.15)
-                    .ignoresSafeArea()
-                    .blur(radius: 40)
+            // Mesh Gradient Overlay for premium feel
+            Color.spendyMeshGradient
+                .opacity(0.15)
+                .ignoresSafeArea()
+                .blur(radius: 40)
 
-                VStack(spacing: 0) {
-                    // MARK: - Header
-                    headerView
-                        .padding(.top, 10)
+            VStack(spacing: 0) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 32) {
 
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 32) {
+                        // 1. Transaction Type Toggle (Top Center)
+                        transactionTypeSegmentedControl
+                            .padding(.top, 10)
 
-                            // 1. Transaction Type Toggle (Top Center)
-                            transactionTypeSegmentedControl
-                                .padding(.top, 10)
+                        // 2. Main Amount Input (Hero)
+                        amountSection
 
-                            // 2. Main Amount Input (Hero)
-                            amountSection
+                        // 3. Details Form
+                        detailsForm
+                            .padding(.horizontal, 24)
 
-                            // 3. Details Form
-                            detailsForm
-                                .padding(.horizontal, 24)
-
-                            // Filler for scroll
-                            if let error = errorMessage {
-                                errorBanner(error)
-                                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                            }
-
-                            saveButton
-                                .padding(.bottom, 20)
+                        // Filler for scroll
+                        if let error = errorMessage {
+                            errorBanner(error)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
-                        .padding(.vertical, 20)
-                    }
-                }
 
+                        saveButton
+                            .padding(.bottom, 20)
+                    }
+                    .padding(.vertical, 20)
+                }
             }
-            .navigationBarHidden(true)
         }
+        .navigationTitle(isExpense ? "Nuova Spesa" : "Nuova Entrata")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .fontWeight(.bold)
+                        .foregroundColor(.black)
+                }
+            }
+
+            ToolbarItem(placement: .principal) {
+                Text("Nuova Transazione")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(.black)
+            }
+        }
+        .navigationBarBackButtonHidden(true)
     }
 
     // MARK: - Components
-
-    private var headerView: some View {
-        HStack(spacing: 16) {
-            Spacer()
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 8)
-    }
 
     private var transactionTypeSegmentedControl: some View {
         HStack(spacing: 0) {
             typeSegmentButton(title: "Uscita", isSelected: isExpense) {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     isExpense = true
-
                 }
             }
 
             typeSegmentButton(title: "Entrata", isSelected: !isExpense) {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     isExpense = false
-
                 }
             }
         }
@@ -113,8 +115,6 @@ struct AddExpenseView: View {
                 }
         }
     }
-
-    @Namespace private var namespace
 
     private var amountSection: some View {
         VStack(spacing: 8) {
@@ -164,6 +164,7 @@ struct AddExpenseView: View {
                 }
             }
             .padding(16)
+            .frame(height: 72)
             .background(Color.white)
             .cornerRadius(16)
             .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
@@ -197,6 +198,7 @@ struct AddExpenseView: View {
                 }
             }
             .padding(16)
+            .frame(height: 72)
             .background(Color.white)
             .cornerRadius(16)
             .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
@@ -340,10 +342,8 @@ struct AddExpenseView: View {
                 await MainActor.run {
                     isLoading = false
                     errorMessage = "Errore: \(error.localizedDescription)"
-
                 }
             }
         }
     }
-
 }
