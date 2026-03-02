@@ -12,100 +12,130 @@ struct UploadView: View {
             Color.spendyBackground
                 .ignoresSafeArea()
 
-            VStack(spacing: 32) {
-                Spacer()
-
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.spendyPrimary.opacity(0.15),
-                                        Color.spendyAccent.opacity(0.1),
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 120, height: 120)
 
-                        Image(systemName: "doc.text.viewfinder")
-                            .font(.system(size: 48, weight: .medium))
-                            .foregroundStyle(Color.spendyGradient)
-                    }
+                    // MARK: - Drop Zone Card
+                    SpendyCard(style: .gradientBordered, padding: 0) {
+                        VStack(spacing: 28) {
+                            // Dashed upload area
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(
+                                        style: StrokeStyle(
+                                            lineWidth: 2,
+                                            dash: [8, 5]
+                                        )
+                                    )
+                                    .foregroundStyle(Color.spendyGradientBorder)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 180)
 
-                    VStack(spacing: 12) {
-                        Text("Importa Spese")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundColor(.spendyText)
+                                VStack(spacing: 16) {
+                                    // Icon with gradient background circle
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.spendyGradientSubtle)
+                                            .frame(width: 80, height: 80)
 
-                        Text("Carica il tuo file CSV per importare\nautomaticamente le transazioni")
-                            .font(.body)
-                            .foregroundColor(.spendySecondaryText)
-                            .multilineTextAlignment(.center)
-                            .lineSpacing(4)
-                    }
-                }
+                                        Image(systemName: isLoading ? "arrow.triangle.2.circlepath" : "doc.text.viewfinder")
+                                            .font(.system(size: 36, weight: .medium))
+                                            .foregroundStyle(Color.spendyGradient)
+                                            .rotationEffect(isLoading ? .degrees(360) : .degrees(0))
+                                            .animation(
+                                                isLoading
+                                                    ? .linear(duration: 1.2).repeatForever(autoreverses: false)
+                                                    : .default,
+                                                value: isLoading
+                                            )
+                                    }
 
-                VStack(spacing: 16) {
-                    Button(action: {
-                        isImporting = true
-                    }) {
-                        HStack(spacing: 12) {
-                            if isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Image(systemName: "square.and.arrow.up")
-                                    .font(.system(size: 20, weight: .semibold))
+                                    VStack(spacing: 6) {
+                                        Text(isLoading ? "Importazione in corso..." : "Trascina il file qui")
+                                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                            .foregroundColor(.spendyText)
+
+                                        Text(isLoading ? "Attendi qualche istante" : "oppure usa il pulsante qui sotto")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.spendyTertiaryText)
+                                    }
+                                }
                             }
-                            Text(isLoading ? "Caricamento..." : "Seleziona File CSV")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(Color.spendyGradient)
-                        .cornerRadius(16)
-                        .shadow(color: Color.spendyPrimary.opacity(0.4), radius: 12, x: 0, y: 6)
-                    }
-                    .disabled(isLoading)
-                    .padding(.horizontal, 40)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
 
-                    if !message.isEmpty {
-                        HStack(spacing: 12) {
-                            Image(
-                                systemName: isSuccess
-                                    ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
-                            )
-                            .font(.system(size: 20))
-                            .foregroundColor(isSuccess ? .spendyGreen : .spendyRed)
+                            // Title and description
+                            VStack(spacing: 8) {
+                                Text("Importa Spese")
+                                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                                    .foregroundColor(.spendyText)
 
-                            Text(message)
-                                .font(.subheadline)
-                                .foregroundColor(isSuccess ? .spendyGreen : .spendyRed)
+                                Text("Carica il tuo file CSV per importare\nautomaticamente le transazioni")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.spendySecondaryText)
+                                    .multilineTextAlignment(.center)
+                                    .lineSpacing(3)
+                            }
+
+                            // File picker button
+                            SpendyButton(
+                                isLoading ? "Caricamento..." : "Seleziona File CSV",
+                                variant: .secondary,
+                                isLoading: false,
+                                isDisabled: isLoading,
+                                leadingIcon: isLoading ? nil : "square.and.arrow.up"
+                            ) {
+                                isImporting = true
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.bottom, 4)
                         }
                         .padding(16)
-                        .frame(maxWidth: .infinity)
-                        .background((isSuccess ? Color.spendyGreen : Color.spendyRed).opacity(0.1))
-                        .cornerRadius(12)
-                        .padding(.horizontal, 40)
                     }
-                }
 
-                Spacer()
+                    // MARK: - Status Message Card
+                    if !message.isEmpty {
+                        SpendyCard(style: .default, padding: 16) {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(isSuccess ? Color.spendyGreenLight : Color.spendyRedLight)
+                                        .frame(width: 40, height: 40)
 
-                VStack(spacing: 8) {
+                                    Image(systemName: isSuccess ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundColor(isSuccess ? .spendyGreen : .spendyRed)
+                                }
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(isSuccess ? "Completato" : "Errore")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(isSuccess ? .spendyGreen : .spendyRed)
+
+                                    Text(message)
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.spendySecondaryText)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+
+                                Spacer()
+                            }
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+
+                    // MARK: - Supported Formats Info
                     HStack(spacing: 6) {
                         Image(systemName: "info.circle")
-                            .font(.caption)
+                            .font(.system(size: 12))
                         Text("Formati supportati: CSV")
-                            .font(.caption)
+                            .font(.system(size: 12))
                     }
                     .foregroundColor(.spendyTertiaryText)
+                    .padding(.top, 4)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
                 .padding(.bottom, 120)
             }
         }

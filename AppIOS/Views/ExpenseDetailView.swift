@@ -32,7 +32,7 @@ struct ExpenseDetailView: View {
                 .blur(radius: 40)
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     amountHeader
                         .opacity(animateContent ? 1 : 0)
                         .offset(y: animateContent ? 0 : 20)
@@ -41,16 +41,13 @@ struct ExpenseDetailView: View {
                         .opacity(animateContent ? 1 : 0)
                         .offset(y: animateContent ? 0 : 30)
 
-                    if isEditing {
-                        saveButton
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    } else {
-                        deleteButton
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
+                    actionButtons
+                        .opacity(animateContent ? 1 : 0)
+                        .offset(y: animateContent ? 0 : 40)
                 }
-                .padding(24)
-                .padding(.bottom, 40)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 48)
             }
         }
         .navigationTitle("Dettaglio")
@@ -79,129 +76,152 @@ struct ExpenseDetailView: View {
         }
     }
 
+    // MARK: - Amount Header
+
     private var amountHeader: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(categoryColor.opacity(0.08))
-                    .frame(width: 80, height: 80)
+        SpendyCard(style: .elevated, padding: 28, cornerRadius: 24) {
+            VStack(spacing: 16) {
+                // Category icon in gradient circle
+                ZStack {
+                    // Outer glow ring
+                    Circle()
+                        .fill(categoryColor.opacity(0.12))
+                        .frame(width: 96, height: 96)
 
-                Image(systemName: categoryIcon)
-                    .font(.system(size: 36, weight: .semibold))
-                    .foregroundColor(categoryColor)
-                    .shadow(color: categoryColor.opacity(0.2), radius: 8, x: 0, y: 4)
-            }
-            .padding(.top, 10)
-
-            VStack(spacing: 6) {
-                if isEditing {
-                    TextField("Cosa hai comprato?", text: $description)
-                        .font(.system(size: 18, weight: .medium, design: .rounded))
-                        .foregroundColor(.spendySecondaryText)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                        .accentColor(Color.spendyPrimary)
-                } else {
-                    Text(description.isEmpty ? "Spesa senza nome" : description.uppercased())
-                        .font(.system(size: 14, weight: .bold))
-                        .tracking(1.5)
-                        .foregroundColor(.spendyTertiaryText)
-                }
-
-                if isEditing {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("€")
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundColor(.spendyText)
-
-                        TextField(
-                            "0.00",
-                            value: Binding(
-                                get: { abs(amount) },
-                                set: { newValue in
-                                    if amount < 0 {
-                                        amount = -abs(newValue)
-                                    } else {
-                                        amount = abs(newValue)
-                                    }
-                                }
-                            ), format: .number.precision(.fractionLength(2))
+                    // Inner gradient circle
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    categoryColor.opacity(0.22),
+                                    categoryColor.opacity(0.10)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundColor(.spendyText)
-                        .keyboardType(.decimalPad)
-                        .fixedSize()
-                        .accentColor(Color.spendyPrimary)
-                    }
-                } else {
-                    Text(amount, format: .currency(code: expense.currency ?? "EUR"))
-                        .font(.system(size: 56, weight: .bold, design: .rounded))
-                        .foregroundColor(.spendyText)
+                        .frame(width: 78, height: 78)
+                        .overlay {
+                            Circle()
+                                .stroke(categoryColor.opacity(0.3), lineWidth: 1)
+                        }
+
+                    Image(systemName: categoryIcon)
+                        .font(.system(size: 34, weight: .semibold))
+                        .foregroundColor(categoryColor)
+                        .shadow(color: categoryColor.opacity(0.25), radius: 8, x: 0, y: 4)
                 }
 
-                if isEditing {
-                    DatePicker("", selection: $startedDate)
-                        .labelsHidden()
-                        .colorMultiply(.spendyText)  // Maintains consistent color
-                        .accentColor(Color.spendyPrimary)
-                        .scaleEffect(0.9)  // Slightly smaller
-                } else {
-                    Text(
-                        startedDate.formattedDescription(
-                            withTime: Calendar.current.component(.year, from: startedDate)
-                                == Calendar.current.component(.year, from: Date()))
-                    )
-                    .font(.system(size: 16, weight: .regular, design: .rounded))
-                    .foregroundColor(Color.spendySecondaryText)
+                VStack(spacing: 8) {
+                    // Description — editable or display
+                    if isEditing {
+                        TextField("Cosa hai comprato?", text: $description)
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundColor(.spendySecondaryText)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                            .tint(.spendyPrimary)
+                    } else {
+                        Text(description.isEmpty ? "Spesa senza nome" : description.uppercased())
+                            .font(.system(size: 12, weight: .bold))
+                            .tracking(1.8)
+                            .foregroundColor(.spendyTertiaryText)
+                    }
+
+                    // Amount — editable or display
+                    if isEditing {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("€")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundColor(.spendyText)
+
+                            TextField(
+                                "0.00",
+                                value: Binding(
+                                    get: { abs(amount) },
+                                    set: { newValue in
+                                        if amount < 0 {
+                                            amount = -abs(newValue)
+                                        } else {
+                                            amount = abs(newValue)
+                                        }
+                                    }
+                                ), format: .number.precision(.fractionLength(2))
+                            )
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .foregroundColor(.spendyText)
+                            .keyboardType(.decimalPad)
+                            .fixedSize()
+                            .tint(.spendyPrimary)
+                        }
+                    } else {
+                        Text(amount, format: .currency(code: expense.currency ?? "EUR"))
+                            .font(.system(size: 52, weight: .bold, design: .rounded))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color.spendyText, Color.spendyText.opacity(0.85)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    }
+
+                    // Date — editable or display
+                    if isEditing {
+                        DatePicker("", selection: $startedDate)
+                            .labelsHidden()
+                            .colorMultiply(.spendyText)
+                            .tint(.spendyPrimary)
+                            .scaleEffect(0.9)
+                    } else {
+                        HStack(spacing: 6) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.spendyTertiaryText)
+
+                            Text(
+                                startedDate.formattedDescription(
+                                    withTime: Calendar.current.component(.year, from: startedDate)
+                                        == Calendar.current.component(.year, from: Date()))
+                            )
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundColor(.spendySecondaryText)
+                        }
+                    }
                 }
             }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
     }
 
+    // MARK: - Details Card
+
     private var detailsCard: some View {
-        VStack(spacing: 20) {
-            // Data moved to Header
-
-            // Categoria (sempre visibile se presente)
-            if let cat = expense.category {
-                HStack(spacing: 16) {
-                    Image(systemName: "tag.fill")
-                        .foregroundColor(categoryColor)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("CATEGORIA")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.spendyTertiaryText)
-
+        SpendyCard(style: .default, padding: 0, cornerRadius: 20) {
+            VStack(spacing: 0) {
+                // Category row (only shown when present)
+                if let cat = expense.category {
+                    detailRow(
+                        icon: "tag.fill",
+                        label: "CATEGORIA",
+                        iconColor: categoryColor
+                    ) {
                         Text(cat)
-                            .font(.body)
-                            .fontWeight(.bold)
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(categoryColor)
                     }
-                    Spacer()
+
+                    Divider()
+                        .padding(.leading, 56)
+                        .padding(.trailing, 16)
                 }
-                .padding(16)
-                .background(Color.white)
-                .cornerRadius(16)
-                .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
-            }
 
-            // Metodo
-            HStack(spacing: 16) {
-                Image(systemName: "creditcard.fill")
-                    .foregroundColor(.spendyPrimary)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("METODO")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.spendyTertiaryText)
-
+                // Payment method row
+                detailRow(
+                    icon: "creditcard.fill",
+                    label: "METODO",
+                    iconColor: .spendyPrimary
+                ) {
                     if isEditing {
                         Picker("", selection: $type) {
                             Text("Carta").tag("Carta")
@@ -211,63 +231,115 @@ struct ExpenseDetailView: View {
                         }
                         .pickerStyle(.menu)
                         .tint(.spendyPrimary)
-                        .offset(x: -8)
+                        .offset(x: 8)
                     } else {
                         Text(type == "Pagamento con carta" ? "Carta" : type)
-                            .font(.body)
-                            .fontWeight(.medium)
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundColor(.spendyText)
                     }
                 }
-                Spacer()
+
+                // Currency row (only when present)
+                if let currency = expense.currency {
+                    Divider()
+                        .padding(.leading, 56)
+                        .padding(.trailing, 16)
+
+                    detailRow(
+                        icon: "dollarsign.circle.fill",
+                        label: "VALUTA",
+                        iconColor: .spendyGreen
+                    ) {
+                        Text(currency)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.spendyText)
+                    }
+                }
+
+                // Fee row (only when present and non-zero)
+                if let fee = expense.fee, fee != 0 {
+                    Divider()
+                        .padding(.leading, 56)
+                        .padding(.trailing, 16)
+
+                    detailRow(
+                        icon: "percent",
+                        label: "COMMISSIONE",
+                        iconColor: .spendyOrange
+                    ) {
+                        Text(fee, format: .currency(code: expense.currency ?? "EUR"))
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.spendyOrange)
+                    }
+                }
             }
-            .padding(16)
-            .background(Color.white)
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
         }
     }
 
-    private var saveButton: some View {
-        Button(action: updateExpense) {
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 20))
-                Text("Salva Modifiche")
-                    .font(.headline)
-                    .fontWeight(.bold)
+    // MARK: - Reusable Detail Row
+
+    private func detailRow<Content: View>(
+        icon: String,
+        label: String,
+        iconColor: Color,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(iconColor.opacity(0.10))
+                    .frame(width: 36, height: 36)
+
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(iconColor)
             }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(Color.spendyGradient)
-            .cornerRadius(16)
-            .shadow(color: Color.spendyPrimary.opacity(0.4), radius: 12, x: 0, y: 6)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label)
+                    .font(.system(size: 10, weight: .bold))
+                    .tracking(1.2)
+                    .foregroundColor(.spendyTertiaryText)
+
+                content()
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+    }
+
+    // MARK: - Action Buttons
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        if isEditing {
+            SpendyButton(
+                "Salva Modifiche",
+                variant: .primary,
+                leadingIcon: "checkmark.circle.fill"
+            ) {
+                updateExpense()
+            }
+            .transition(.opacity.combined(with: .move(edge: .bottom)))
+        } else {
+            SpendyButton(
+                "Elimina transazione",
+                variant: .destructive,
+                leadingIcon: "trash.fill"
+            ) {
+                deleteExpense()
+            }
+            .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
 
-    private var deleteButton: some View {
-        Button(action: deleteExpense) {
-            HStack(spacing: 8) {
-                Image(systemName: "trash.fill")
-                    .font(.system(size: 18))
-                Text("Elimina transazione")
-                    .font(.headline)
-                    .fontWeight(.bold)
-            }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(Color.spendyRed.opacity(0.9))
-            .cornerRadius(16)
-            .shadow(color: Color.spendyRed.opacity(0.3), radius: 10, x: 0, y: 5)
-        }
-    }
+    // MARK: - Private Logic
 
     private func initializeFields() {
         description = expense.userDescription
         amount = expense.amount
-        category = expense.category ?? ""
         category = expense.category ?? ""
         if ["Pagamento con carta", "Carta", "Ricarica", "Contanti"].contains(
             expense.type)

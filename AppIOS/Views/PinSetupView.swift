@@ -19,89 +19,106 @@ struct PinSetupView: View {
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            // Deeper, auth-flavored animated background
+            AnimatedGradientBackground(
+                orbs: [
+                    GradientOrb(
+                        color: Color.spendyPrimary.opacity(0.28),
+                        size: 340,
+                        blurRadius: 90,
+                        initialOffset: CGSize(width: -130, height: -310),
+                        amplitude: CGSize(width: 55, height: 50)
+                    ),
+                    GradientOrb(
+                        color: Color.spendyAccent.opacity(0.22),
+                        size: 280,
+                        blurRadius: 80,
+                        initialOffset: CGSize(width: 150, height: 340),
+                        amplitude: CGSize(width: -45, height: -80)
+                    ),
+                    GradientOrb(
+                        color: Color.spendyCyan.opacity(0.10),
+                        size: 180,
+                        blurRadius: 60,
+                        initialOffset: CGSize(width: 110, height: -160),
+                        amplitude: CGSize(width: -60, height: 45)
+                    )
+                ],
+                baseColor: Color.spendyBackground,
+                animationDuration: 14
+            )
 
-            Circle()
-                .fill(Color.spendyPrimary.opacity(0.06))
-                .frame(width: 400)
-                .blur(radius: 80)
-                .offset(x: -100, y: -300)
-
-            Circle()
-                .fill(Color.spendyAccent.opacity(0.05))
-                .frame(width: 300)
-                .blur(radius: 60)
-                .offset(x: 150, y: 400)
-
-            VStack(spacing: 40) {
+            VStack(spacing: 44) {
                 Spacer()
 
-                VStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.spendyPrimary.opacity(0.15),
-                                        Color.spendyAccent.opacity(0.1),
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 90, height: 90)
-
-                        Image(systemName: isConfirming ? "lock.rotation" : "lock.fill")
-                            .font(.system(size: 36, weight: .medium))
-                            .foregroundStyle(Color.spendyGradient)
-                    }
-                    .scaleEffect(animateContent ? 1 : 0.8)
-                    .opacity(animateContent ? 1 : 0)
-
-                    Text(message)
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
-                        .foregroundColor(.spendyText)
-                        .multilineTextAlignment(.center)
+                // MARK: - Header
+                VStack(spacing: 18) {
+                    AnimatedLockIcon(isConfirming: isConfirming)
+                        .scaleEffect(animateContent ? 1 : 0.75)
                         .opacity(animateContent ? 1 : 0)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.68).delay(0.05), value: animateContent)
+
+                    VStack(spacing: 6) {
+                        Text(message)
+                            .font(.system(size: 22, weight: .semibold, design: .rounded))
+                            .foregroundColor(.spendyText)
+                            .multilineTextAlignment(.center)
+                            .contentTransition(.opacity)
+                            .animation(.easeInOut(duration: 0.22), value: message)
+
+                        Text("Il PIN protegge il tuo accesso all'app")
+                            .font(.caption)
+                            .foregroundColor(.spendyTertiaryText)
+                            .opacity(isConfirming ? 0 : 1)
+                            .animation(.easeInOut(duration: 0.2), value: isConfirming)
+                    }
+                    .opacity(animateContent ? 1 : 0)
+                    .offset(y: animateContent ? 0 : 12)
+                    .animation(.easeOut(duration: 0.4).delay(0.12), value: animateContent)
                 }
 
-                HStack(spacing: 20) {
+                // MARK: - PIN Dots
+                HStack(spacing: 18) {
                     ForEach(0..<6) { index in
                         let currentPin = isConfirming ? confirmPin : pin
                         PinDot(isFilled: index < currentPin.count, showError: showError)
                     }
                 }
                 .shake($showError)
-                .padding(.bottom, 20)
+                .padding(.bottom, 8)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.easeOut(duration: 0.4).delay(0.18), value: animateContent)
 
-                LazyVGrid(columns: columns, spacing: 20) {
+                // MARK: - Keypad
+                LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(1...9, id: \.self) { number in
-                        NativeKeypadButton(text: "\(number)") {
+                        PinKeypadButton(text: "\(number)") {
                             addDigit("\(number)")
                         }
                     }
 
-                    Color.clear.frame(width: 75, height: 75)
+                    Color.clear.frame(width: 72, height: 72)
 
-                    NativeKeypadButton(text: "0") {
+                    PinKeypadButton(text: "0") {
                         addDigit("0")
                     }
 
-                    Button(action: {
-                        deleteDigit()
-                    }) {
+                    Button(action: deleteDigit) {
                         ZStack {
                             Circle()
                                 .fill(Color.clear)
-                                .frame(width: 75, height: 75)
+                                .frame(width: 72, height: 72)
 
                             Image(systemName: "delete.left")
-                                .font(.system(size: 22, weight: .medium))
+                                .font(.system(size: 20, weight: .medium))
                                 .foregroundColor(.spendySecondaryText)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 40)
+                .padding(.horizontal, 36)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.easeOut(duration: 0.4).delay(0.22), value: animateContent)
 
                 Spacer()
             }
@@ -188,5 +205,115 @@ struct PinSetupView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Animated Lock Icon
+
+/// Lock icon with a pulsing gradient ring that swaps the symbol when confirming.
+private struct AnimatedLockIcon: View {
+
+    let isConfirming: Bool
+    @State private var pulseScale: CGFloat = 1.0
+    @State private var pulseOpacity: Double = 0.6
+
+    var body: some View {
+        ZStack {
+            // Outer pulse ring
+            Circle()
+                .stroke(Color.spendyPrimary.opacity(0.18), lineWidth: 2)
+                .frame(width: 114, height: 114)
+                .scaleEffect(pulseScale)
+                .opacity(pulseOpacity)
+
+            // Background orb
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.spendyPrimary.opacity(0.18),
+                            Color.spendyAccent.opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 96, height: 96)
+
+            // Gradient border ring
+            Circle()
+                .stroke(Color.spendyGradientBorder, lineWidth: 1.5)
+                .frame(width: 96, height: 96)
+
+            // Icon
+            Image(systemName: isConfirming ? "lock.rotation" : "lock.fill")
+                .font(.system(size: 34, weight: .medium))
+                .foregroundStyle(Color.spendyGradient)
+                .contentTransition(.symbolEffect(.replace))
+                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isConfirming)
+        }
+        .onAppear {
+            withAnimation(
+                .easeInOut(duration: 1.8)
+                .repeatForever(autoreverses: true)
+            ) {
+                pulseScale = 1.12
+                pulseOpacity = 0.0
+            }
+        }
+    }
+}
+
+// MARK: - PIN Keypad Button
+
+/// Styled digit keypad button with gradient fill and spring press animation.
+private struct PinKeypadButton: View {
+
+    let text: String
+    let action: () -> Void
+    @State private var isPressed: Bool = false
+
+    var body: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.18, dampingFraction: 0.6)) {
+                isPressed = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.65)) {
+                    isPressed = false
+                }
+            }
+            action()
+        }) {
+            ZStack {
+                Circle()
+                    .fill(
+                        isPressed
+                            ? Color.spendyPrimary.opacity(0.15)
+                            : Color.spendySurface
+                    )
+                    .frame(width: 72, height: 72)
+                    .shadow(
+                        color: Color.spendyShadowCard,
+                        radius: isPressed ? 2 : 6,
+                        x: 0,
+                        y: isPressed ? 1 : 3
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                Color.spendyBorderSubtle,
+                                lineWidth: 0.5
+                            )
+                    )
+
+                Text(text)
+                    .font(.system(size: 28, weight: .regular, design: .rounded))
+                    .foregroundColor(.spendyText)
+            }
+            .scaleEffect(isPressed ? 0.93 : 1.0)
+            .animation(.spring(response: 0.18, dampingFraction: 0.6), value: isPressed)
+        }
+        .buttonStyle(.plain)
     }
 }

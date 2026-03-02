@@ -18,188 +18,202 @@ struct AuthView: View {
 
     var body: some View {
         ZStack {
-            Color.spendyBackground
-                .ignoresSafeArea()
-
-            Circle()
-                .fill(Color.spendyPrimary.opacity(0.15))
-                .frame(width: 300)
-                .blur(radius: 60)
-                .offset(x: -150, y: -300)
-
-            Circle()
-                .fill(Color.spendyAccent.opacity(0.12))
-                .frame(width: 250)
-                .blur(radius: 50)
-                .offset(x: 150, y: 400)
+            AnimatedGradientBackground()
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 32) {
-                    VStack(spacing: 20) {
+                VStack(spacing: 36) {
+
+                    // MARK: - Header
+                    VStack(spacing: 16) {
                         ZStack {
+                            // Outer glow ring
+                            Circle()
+                                .fill(Color.spendyPrimary.opacity(0.12))
+                                .frame(width: 130, height: 130)
+                                .blur(radius: 16)
+
+                            // Logo background circle
                             Circle()
                                 .fill(
                                     LinearGradient(
                                         colors: [
-                                            Color.spendyPrimary.opacity(0.2),
-                                            Color.spendyAccent.opacity(0.1),
+                                            Color.spendyPrimary.opacity(0.18),
+                                            Color.spendyAccent.opacity(0.12)
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: 120, height: 120)
+                                .frame(width: 110, height: 110)
+
+                            // Inner border ring
+                            Circle()
+                                .stroke(Color.spendyGradientBorder, lineWidth: 1.5)
+                                .frame(width: 110, height: 110)
 
                             Image("SpendyLogo")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 80, height: 80)
-                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                                .frame(width: 72, height: 72)
+                                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                .shadow(color: Color.spendyShadowPrimary, radius: 8, x: 0, y: 4)
                         }
                         .scaleEffect(animateContent ? 1 : 0.8)
                         .opacity(animateContent ? 1 : 0)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.05), value: animateContent)
 
-                        VStack(spacing: 8) {
+                        VStack(spacing: 6) {
                             Text(isLoginMode ? "Bentornato!" : "Crea Account")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .font(.system(size: 30, weight: .bold, design: .rounded))
                                 .foregroundColor(.spendyText)
+                                .contentTransition(.numericText())
+                                .animation(.easeInOut(duration: 0.25), value: isLoginMode)
 
                             Text(
                                 isLoginMode
-                                    ? "Accedi per gestire le tue spese" : "Registrati per iniziare"
+                                    ? "Accedi per gestire le tue spese"
+                                    : "Registrati per iniziare"
                             )
-                            .font(.body)
+                            .font(.subheadline)
                             .foregroundColor(.spendySecondaryText)
+                            .contentTransition(.opacity)
+                            .animation(.easeInOut(duration: 0.25), value: isLoginMode)
                         }
                         .opacity(animateContent ? 1 : 0)
-                        .offset(y: animateContent ? 0 : 20)
+                        .offset(y: animateContent ? 0 : 16)
+                        .animation(.easeOut(duration: 0.45).delay(0.1), value: animateContent)
                     }
-                    .padding(.top, 40)
+                    .padding(.top, 52)
 
-                    VStack(spacing: 20) {
-                        ModernTextField(
-                            icon: "person.fill",
-                            placeholder: isLoginMode ? "Username o email" : "Username",
-                            text: $username,
-                            isSecure: false
-                        )
-                        .focused($focusedField, equals: .username)
-                        .textInputAutocapitalization(.never)
+                    // MARK: - Mode Selector
+                    AuthModeSelector(isLoginMode: $isLoginMode)
+                        .opacity(animateContent ? 1 : 0)
+                        .offset(y: animateContent ? 0 : 12)
+                        .animation(.easeOut(duration: 0.45).delay(0.15), value: animateContent)
+                        .padding(.horizontal, 24)
 
-                        ModernTextField(
-                            icon: "lock.fill",
-                            placeholder: "Password",
-                            text: $password,
-                            isSecure: true
-                        )
-                        .focused($focusedField, equals: .password)
+                    // MARK: - Form Card
+                    SpendyCard(style: .elevated, padding: 24, cornerRadius: 28) {
+                        VStack(spacing: 16) {
 
-                        if !isLoginMode {
-                            ModernTextField(
-                                icon: "envelope.fill",
-                                placeholder: "Email",
-                                text: $email,
-                                isSecure: false
+                            // Username field
+                            SpendyTextField(
+                                label: isLoginMode ? "Username o email" : "Username",
+                                text: $username,
+                                icon: "person.fill",
+                                keyboardType: .default,
+                                autocapitalization: .never
                             )
-                            .focused($focusedField, equals: .email)
-                            .textInputAutocapitalization(.never)
-                            .keyboardType(.emailAddress)
+                            .focused($focusedField, equals: .username)
 
-                            HStack(spacing: 12) {
-                                ModernTextField(
-                                    icon: "person.text.rectangle",
-                                    placeholder: "Nome",
-                                    text: $name,
-                                    isSecure: false
+                            // Password field
+                            SpendyTextField(
+                                label: "Password",
+                                text: $password,
+                                icon: "lock.fill",
+                                isSecure: true,
+                                textContentType: .password
+                            )
+                            .focused($focusedField, equals: .password)
+
+                            if !isLoginMode {
+                                SpendyTextField(
+                                    label: "Email",
+                                    text: $email,
+                                    icon: "envelope.fill",
+                                    keyboardType: .emailAddress,
+                                    textContentType: .emailAddress,
+                                    autocapitalization: .never
                                 )
-                                .focused($focusedField, equals: .name)
+                                .focused($focusedField, equals: .email)
+                                .transition(.move(edge: .top).combined(with: .opacity))
 
-                                ModernTextField(
-                                    icon: "person.text.rectangle",
-                                    placeholder: "Cognome",
-                                    text: $surname,
-                                    isSecure: false
-                                )
-                                .focused($focusedField, equals: .surname)
-                            }
-                        }
+                                HStack(spacing: 12) {
+                                    SpendyTextField(
+                                        label: "Nome",
+                                        text: $name,
+                                        icon: "person.text.rectangle",
+                                        textContentType: .givenName
+                                    )
+                                    .focused($focusedField, equals: .name)
 
-                        if let error = authManager.errorMessage {
-                            HStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.circle.fill")
-                                    .foregroundColor(.spendyRed)
-                                Text(error)
-                                    .font(.subheadline)
-                                    .foregroundColor(.spendyRed)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .background(Color.spendyRed.opacity(0.1))
-                            .cornerRadius(12)
-                        }
-
-                        Button(action: handleAction) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.spendyGradient)
-                                    .shadow(
-                                        color: Color.spendyPrimary.opacity(0.4), radius: 12, x: 0,
-                                        y: 6)
-
-                                if authManager.isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(1.2)
-                                } else {
-                                    HStack(spacing: 8) {
-                                        Text(isLoginMode ? "Accedi" : "Registrati")
-                                            .font(.headline)
-                                            .fontWeight(.bold)
-                                        Image(systemName: "arrow.right")
-                                            .font(.system(size: 16, weight: .bold))
-                                    }
-                                    .foregroundColor(.white)
+                                    SpendyTextField(
+                                        label: "Cognome",
+                                        text: $surname,
+                                        icon: "person.text.rectangle",
+                                        textContentType: .familyName
+                                    )
+                                    .focused($focusedField, equals: .surname)
                                 }
+                                .transition(.move(edge: .top).combined(with: .opacity))
                             }
-                            .frame(height: 56)
-                        }
-                        .disabled(authManager.isLoading)
-                        .padding(.top, 8)
 
-                        Button(action: {
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                                isLoginMode.toggle()
+                            // MARK: - Error Banner
+                            if let error = authManager.errorMessage {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundColor(.spendyRed)
+
+                                    Text(error)
+                                        .font(.subheadline)
+                                        .foregroundColor(.spendyRed)
+                                        .fixedSize(horizontal: false, vertical: true)
+
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Color.spendyRedLight)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                                .stroke(Color.spendyRed.opacity(0.25), lineWidth: 1)
+                                        )
+                                )
+                                .transition(.move(edge: .top).combined(with: .opacity))
                             }
-                        }) {
-                            HStack(spacing: 4) {
-                                Text(isLoginMode ? "Non hai un account?" : "Hai già un account?")
-                                    .foregroundColor(.spendySecondaryText)
-                                Text(isLoginMode ? "Registrati" : "Accedi")
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(Color.spendyGradient)
+
+                            // MARK: - Primary Action Button
+                            SpendyButton(
+                                isLoginMode ? "Accedi" : "Registrati",
+                                isLoading: authManager.isLoading,
+                                leadingIcon: isLoginMode ? "arrow.right.circle.fill" : "person.badge.plus"
+                            ) {
+                                handleAction()
                             }
-                            .font(.subheadline)
+                            .padding(.top, 4)
+
+                            // MARK: - Toggle Mode Link
+                            Button(action: {
+                                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                                    isLoginMode.toggle()
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text(isLoginMode ? "Non hai un account?" : "Hai già un account?")
+                                        .foregroundColor(.spendySecondaryText)
+                                    Text(isLoginMode ? "Registrati" : "Accedi")
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(Color.spendyGradient)
+                                }
+                                .font(.subheadline)
+                            }
+                            .padding(.top, 4)
                         }
-                        .padding(.top, 8)
-                    }
-                    .padding(24)
-                    .background {
-                        RoundedRectangle(cornerRadius: 28)
-                            .fill(.ultraThinMaterial)
-                            .shadow(color: Color.black.opacity(0.08), radius: 20, x: 0, y: 10)
                     }
                     .padding(.horizontal, 20)
                     .opacity(animateContent ? 1 : 0)
-                    .offset(y: animateContent ? 0 : 30)
+                    .offset(y: animateContent ? 0 : 24)
+                    .animation(.easeOut(duration: 0.45).delay(0.2), value: animateContent)
 
                     Spacer(minLength: 40)
                 }
             }
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.6)) {
-                animateContent = true
-            }
+            animateContent = true
         }
     }
 
@@ -217,48 +231,60 @@ struct AuthView: View {
     }
 }
 
-struct ModernTextField: View {
-    let icon: String
-    let placeholder: String
-    @Binding var text: String
-    let isSecure: Bool
-    @State private var isPasswordVisible = false
-    @FocusState private var isFocused: Bool
+// MARK: - Auth Mode Selector
+
+/// Animated pill-style segmented control for switching between Login and Register modes.
+private struct AuthModeSelector: View {
+
+    @Binding var isLoginMode: Bool
+    @Namespace private var pillNamespace
+
+    private let options: [(label: String, icon: String, isLogin: Bool)] = [
+        ("Accedi", "arrow.right.circle.fill", true),
+        ("Registrati", "person.badge.plus", false)
+    ]
 
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundColor(isFocused ? .spendyPrimary : .spendySecondaryText)
-                .frame(width: 24)
-
-            if isSecure && !isPasswordVisible {
-                SecureField(placeholder, text: $text)
-                    .focused($isFocused)
-            } else {
-                TextField(placeholder, text: $text)
-                    .focused($isFocused)
-            }
-
-            if isSecure {
-                Button(action: { isPasswordVisible.toggle() }) {
-                    Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.spendySecondaryText)
+        HStack(spacing: 0) {
+            ForEach(options, id: \.label) { option in
+                Button(action: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                        isLoginMode = option.isLogin
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: option.icon)
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(option.label)
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(
+                        isLoginMode == option.isLogin ? .white : .spendySecondaryText
+                    )
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 42)
+                    .background {
+                        if isLoginMode == option.isLogin {
+                            Capsule()
+                                .fill(Color.spendyGradientDeep)
+                                .shadow(color: Color.spendyPrimary.opacity(0.30), radius: 8, x: 0, y: 4)
+                                .matchedGeometryEffect(id: "pill", in: pillNamespace)
+                        }
+                    }
                 }
+                .buttonStyle(.plain)
+                .animation(.spring(response: 0.4, dampingFraction: 0.75), value: isLoginMode)
             }
         }
-        .padding(16)
-        .background(Color.white)
-        .cornerRadius(14)
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(isFocused ? Color.spendyPrimary : Color.clear, lineWidth: 2)
+        .padding(4)
+        .background(
+            Capsule()
+                .fill(Color.spendyBackgroundDark)
+                .overlay(
+                    Capsule()
+                        .stroke(Color.spendyBorderSubtle, lineWidth: 0.5)
+                )
         )
-        .shadow(
-            color: isFocused ? Color.spendyPrimary.opacity(0.15) : Color.black.opacity(0.04),
-            radius: isFocused ? 8 : 4, x: 0, y: 2
-        )
-        .animation(.easeInOut(duration: 0.2), value: isFocused)
     }
 }
+

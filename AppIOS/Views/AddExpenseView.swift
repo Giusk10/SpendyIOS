@@ -21,7 +21,6 @@ struct AddExpenseView: View {
             Color.spendyBackground
                 .ignoresSafeArea()
 
-            // Mesh Gradient Overlay for premium feel
             Color.spendyMeshGradient
                 .opacity(0.15)
                 .ignoresSafeArea()
@@ -29,29 +28,30 @@ struct AddExpenseView: View {
 
             VStack(spacing: 0) {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 32) {
+                    VStack(spacing: 28) {
 
                         // 1. Transaction Type Toggle (Top Center)
                         transactionTypeSegmentedControl
-                            .padding(.top, 10)
+                            .padding(.top, 16)
 
                         // 2. Main Amount Input (Hero)
                         amountSection
 
                         // 3. Details Form
                         detailsForm
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, 20)
 
-                        // Filler for scroll
                         if let error = errorMessage {
                             errorBanner(error)
+                                .padding(.horizontal, 20)
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
 
                         saveButton
-                            .padding(.bottom, 20)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 24)
                     }
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 16)
                 }
             }
         }
@@ -62,14 +62,14 @@ struct AddExpenseView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
                         .fontWeight(.bold)
-                        .foregroundColor(.black)
+                        .foregroundStyle(Color.spendyGradient)
                 }
             }
 
             ToolbarItem(placement: .principal) {
                 Text("Nuova Transazione")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(.black)
+                    .foregroundStyle(Color.spendyGradient)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -78,145 +78,210 @@ struct AddExpenseView: View {
     // MARK: - Components
 
     private var transactionTypeSegmentedControl: some View {
-        HStack(spacing: 0) {
-            typeSegmentButton(title: "Uscita", isSelected: isExpense) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    isExpense = true
+        ZStack(alignment: .leading) {
+            // Track background
+            Capsule()
+                .fill(Color.spendySurface)
+                .shadow(color: Color.spendyShadowNear, radius: 6, x: 0, y: 2)
+                .shadow(color: Color.spendyShadowFar, radius: 12, x: 0, y: 4)
+                .overlay {
+                    Capsule()
+                        .stroke(Color.spendyBorderSubtle, lineWidth: 0.5)
                 }
+
+            // Animated sliding pill
+            GeometryReader { geo in
+                let pillWidth = geo.size.width / 2
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                isExpense ? Color.spendyRed : Color.spendyGreen,
+                                isExpense ? Color.spendyRed.opacity(0.8) : Color.spendyGreen.opacity(0.8)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: pillWidth - 6)
+                    .padding(4)
+                    .shadow(
+                        color: (isExpense ? Color.spendyRed : Color.spendyGreen).opacity(0.35),
+                        radius: 8,
+                        x: 0,
+                        y: 3
+                    )
+                    .offset(x: isExpense ? 0 : pillWidth)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.72), value: isExpense)
             }
 
-            typeSegmentButton(title: "Entrata", isSelected: !isExpense) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    isExpense = false
-                }
-            }
-        }
-        .padding(4)
-        .background(Color.white)
-        .clipShape(Capsule())
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-    }
-
-    private func typeSegmentButton(title: String, isSelected: Bool, action: @escaping () -> Void)
-        -> some View
-    {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(isSelected ? .bold : .medium)
-                .foregroundColor(isSelected ? .white : .spendySecondaryText)
-                .frame(width: 100, height: 36)
-                .background {
-                    if isSelected {
-                        Capsule()
-                            .fill(Color.spendyGradient)
-                            .matchedGeometryEffect(id: "ActiveTab", in: namespace)
+            // Labels row
+            HStack(spacing: 0) {
+                typeSegmentButton(title: "Uscita", icon: "arrow.up.right", isSelected: isExpense) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                        isExpense = true
                     }
                 }
+                typeSegmentButton(title: "Entrata", icon: "arrow.down.left", isSelected: !isExpense) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                        isExpense = false
+                    }
+                }
+            }
         }
+        .frame(height: 50)
+        .padding(.horizontal, 20)
+    }
+
+    private func typeSegmentButton(
+        title: String,
+        icon: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .foregroundColor(isSelected ? .white : .spendySecondaryText)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var amountSection: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             Text("IMPORTO")
-                .font(.caption)
-                .fontWeight(.bold)
-                .tracking(2)
+                .font(.system(size: 11, weight: .bold))
+                .tracking(2.5)
                 .foregroundColor(.spendyTertiaryText)
 
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text("€")
-                    .font(.system(size: 32, weight: .medium, design: .rounded))
-                    .foregroundColor(.spendySecondaryText)
-                    .offset(y: -4)
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.spendySecondaryText, Color.spendyTertiaryText],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .offset(y: -6)
 
                 TextField("0", text: $amount)
-                    .font(.system(size: 64, weight: .bold, design: .rounded))
-                    .foregroundColor(.spendyText)
+                    .font(.system(size: 72, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        amount.isEmpty
+                            ? AnyShapeStyle(Color.spendyTertiaryText.opacity(0.5))
+                            : AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [Color.spendyText, Color.spendyText.opacity(0.85)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    )
                     .multilineTextAlignment(.center)
                     .keyboardType(.decimalPad)
                     .fixedSize(horizontal: true, vertical: false)
-                    .accentColor(.spendyPrimary)
+                    .tint(.spendyPrimary)
             }
-            .padding(.vertical, 10)
+            .padding(.vertical, 4)
+
+            // Subtle underline accent
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.spendyPrimary.opacity(0.5), Color.spendyAccent.opacity(0.3)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: 60, height: 3)
+                .opacity(amount.isEmpty ? 0.3 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: amount.isEmpty)
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
     }
 
     private var detailsForm: some View {
-        VStack(spacing: 20) {
-            // Description Input
-            HStack(spacing: 16) {
-                Image(systemName: "pencil")
-                    .font(.system(size: 18))
-                    .foregroundColor(.spendyPrimary)
-                    .frame(width: 24)
+        VStack(spacing: 16) {
+            // Description — SpendyTextField
+            SpendyTextField(
+                label: "Descrizione (es. Spesa al supermercato)",
+                text: $description,
+                icon: "pencil.line",
+                autocapitalization: .sentences
+            )
 
-                VStack(alignment: .leading, spacing: 4) {
-                    if !description.isEmpty {
-                        Text("Descrizione")
-                            .font(.caption2)
-                            .foregroundColor(.spendySecondaryText)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+            // Date & Time in SpendyCard
+            SpendyCard(style: .default, padding: 0, cornerRadius: 16) {
+                HStack(spacing: 0) {
+                    // Date picker side
+                    HStack(spacing: 10) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.spendyGradientSubtle)
+                                .frame(width: 34, height: 34)
+
+                            Image(systemName: "calendar")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(Color.spendyGradient)
+                        }
+
+                        DatePicker("", selection: $date, displayedComponents: .date)
+                            .labelsHidden()
+                            .tint(.spendyPrimary)
                     }
-                    TextField("Descrizione (es. Spesa)", text: $description)
-                        .font(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 14)
+                    .padding(.vertical, 14)
+
+                    // Separator
+                    Rectangle()
+                        .fill(Color.spendyBorderSubtle)
+                        .frame(width: 1, height: 32)
+
+                    // Time picker side
+                    HStack(spacing: 10) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.spendyGradientSubtle)
+                                .frame(width: 34, height: 34)
+
+                            Image(systemName: "clock")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(Color.spendyGradient)
+                        }
+
+                        DatePicker("", selection: $date, displayedComponents: .hourAndMinute)
+                            .labelsHidden()
+                            .tint(.spendyPrimary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 14)
+                    .padding(.vertical, 14)
+                    .padding(.trailing, 14)
                 }
             }
-            .padding(16)
-            .frame(height: 72)
-            .background(Color.white)
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
 
-            // Date & Time Unified Rectangle
-            HStack(spacing: 0) {
-                // Date
-                HStack(spacing: 8) {
-                    Image(systemName: "calendar")
-                        .foregroundColor(.spendyAccent)
-                    DatePicker("", selection: $date, displayedComponents: .date)
-                        .labelsHidden()
-                        .accentColor(.spendyPrimary)
-                }
-
-                Spacer()
-
-                Divider()
-                    .frame(height: 24)
-                    .padding(.horizontal, 8)
-
-                Spacer()
-
-                // Time
-                HStack(spacing: 8) {
-                    Image(systemName: "clock")
-                        .foregroundColor(.spendyAccent)
-                    DatePicker("", selection: $date, displayedComponents: .hourAndMinute)
-                        .labelsHidden()
-                        .accentColor(.spendyPrimary)
-                }
-            }
-            .padding(16)
-            .frame(height: 72)
-            .background(Color.white)
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 2)
-
-            // Payment Method
-            VStack(alignment: .leading, spacing: 12) {
+            // Payment Method Section
+            VStack(alignment: .leading, spacing: 10) {
                 Text("METODO DI PAGAMENTO")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .tracking(1)
-                    .foregroundColor(.spendySecondaryText)
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(1.5)
+                    .foregroundColor(.spendyTertiaryText)
                     .padding(.leading, 4)
 
                 HStack(spacing: 12) {
-                    paymentMethodCard(
-                        type: "Carta", icon: "creditcard.fill", selected: type == "Carta")
-                    paymentMethodCard(
-                        type: "Contanti", icon: "banknote.fill", selected: type == "Contanti")
+                    paymentMethodCard(type: "Carta", icon: "creditcard.fill", selected: type == "Carta")
+                    paymentMethodCard(type: "Contanti", icon: "banknote.fill", selected: type == "Contanti")
                 }
             }
         }
@@ -224,83 +289,116 @@ struct AddExpenseView: View {
 
     private func paymentMethodCard(type: String, icon: String, selected: Bool) -> some View {
         Button(action: {
-            withAnimation {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 self.type = type
             }
         }) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(
+                            selected
+                                ? LinearGradient(
+                                    colors: [Color.spendyPrimary, Color.spendyAccent],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                : LinearGradient(
+                                    colors: [Color.spendyBackgroundDark, Color.spendyBackgroundDark],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                        )
+                        .frame(width: 36, height: 36)
+
+                    Image(systemName: icon)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(selected ? .white : .spendySecondaryText)
+                }
+
                 Text(type)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(selected ? .spendyPrimary : .spendySecondaryText)
+
+                Spacer()
 
                 if selected {
-                    Spacer()
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.spendyPrimary)
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color.spendyGradient)
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
-            .foregroundColor(selected ? .spendyPrimary : .spendySecondaryText)
             .padding(.vertical, 14)
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(selected ? Color.spendyPrimary.opacity(0.08) : Color.white)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(selected ? Color.spendyPrimary.opacity(0.06) : Color.spendySurface)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(selected ? Color.spendyPrimary : Color.clear, lineWidth: 1.5)
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(
+                                selected
+                                    ? LinearGradient(
+                                        colors: [
+                                            Color.spendyPrimaryLight.opacity(0.7),
+                                            Color.spendyAccentLight.opacity(0.4)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                    : LinearGradient(
+                                        colors: [Color.spendyBorderSubtle, Color.spendyBorderSubtle],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                lineWidth: selected ? 1.5 : 0.5
+                            )
+                    )
+                    .shadow(
+                        color: selected ? Color.spendyPrimary.opacity(0.12) : Color.spendyShadowNear,
+                        radius: selected ? 10 : 4,
+                        x: 0,
+                        y: selected ? 4 : 2
                     )
             )
-            .shadow(color: selected ? .clear : Color.black.opacity(0.02), radius: 5)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selected)
         }
+        .buttonStyle(.plain)
     }
 
     private var saveButton: some View {
-        Button(action: saveExpense) {
-            HStack {
-                if isLoading {
-                    ProgressView()
-                        .tint(.white)
-                } else {
-                    Text("Salva Transazione")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                    Image(systemName: "arrow.right")
-                        .fontWeight(.bold)
-                }
-            }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(
-                canSave ? AnyView(Color.spendyGradient) : AnyView(Color.gray.opacity(0.3))
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .shadow(
-                color: canSave ? Color.spendyPrimary.opacity(0.4) : Color.clear, radius: 15, x: 0,
-                y: 8
-            )
-            .scaleEffect(isLoading ? 0.98 : 1)
+        SpendyButton(
+            "Salva Transazione",
+            isLoading: isLoading,
+            isDisabled: !canSave,
+            leadingIcon: "checkmark.circle.fill"
+        ) {
+            saveExpense()
         }
-        .padding(.horizontal, 24)
-        .disabled(!canSave || isLoading)
     }
 
     private func errorBanner(_ message: String) -> some View {
-        HStack {
+        HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.spendyRed)
+
             Text(message)
                 .font(.footnote)
                 .fontWeight(.medium)
+                .foregroundColor(.spendyRed)
+
+            Spacer()
         }
-        .foregroundColor(.white)
-        .padding()
-        .frame(maxWidth: .infinity)
-        .background(Color.spendyRed)
-        .cornerRadius(12)
-        .shadow(color: Color.spendyRed.opacity(0.3), radius: 10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(Color.spendyRedLight)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.spendyRed.opacity(0.3), lineWidth: 1)
+        }
     }
 
     // MARK: - Logic

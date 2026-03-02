@@ -35,10 +35,10 @@ struct CustomTabBar: View {
         .background(
             VStack(spacing: 0) {
                 Rectangle()
-                    .fill(Color.spendySecondaryText.opacity(0.1))
+                    .fill(Color.spendyBorderSubtle)
                     .frame(height: 0.5)
                 Rectangle()
-                    .fill(Color.white)
+                    .fill(Color.spendySurface)
             }
             .ignoresSafeArea()
         )

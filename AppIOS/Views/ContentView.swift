@@ -27,18 +27,60 @@ struct MainTabView: View {
         TabView(selection: $selectedTab) {
             DashboardView()
                 .tabItem {
-                    Image(systemName: selectedTab == 0 ? "house.fill" : "house")
-                    Text("Home")
+                    Label(
+                        "Home",
+                        systemImage: selectedTab == 0 ? "house.fill" : "house"
+                    )
                 }
                 .tag(0)
 
             AnalyticsView()
                 .tabItem {
-                    Image(systemName: selectedTab == 1 ? "chart.pie.fill" : "chart.pie")
-                    Text("Analytics")
+                    Label(
+                        "Analytics",
+                        systemImage: selectedTab == 1 ? "chart.pie.fill" : "chart.pie"
+                    )
                 }
                 .tag(1)
         }
         .tint(.spendyPrimary)
+        .onAppear {
+            styleTabBar()
+        }
+    }
+
+    // MARK: - Tab Bar Appearance
+
+    private func styleTabBar() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+
+        // Background: warm surface color matching the design system
+        appearance.backgroundColor = UIColor(Color.spendySurface)
+
+        // Top separator line: subtle violet-tinted border
+        appearance.shadowColor = UIColor(Color.spendyBorderSubtle)
+
+        // Unselected item: muted tertiary text
+        let unselected = UITabBarItemAppearance()
+        unselected.normal.iconColor = UIColor(Color.spendyTertiaryText)
+        unselected.normal.titleTextAttributes = [
+            .foregroundColor: UIColor(Color.spendyTertiaryText),
+            .font: UIFont.systemFont(ofSize: 10, weight: .medium)
+        ]
+
+        // Selected item: brand primary (indigo)
+        unselected.selected.iconColor = UIColor(Color.spendyPrimary)
+        unselected.selected.titleTextAttributes = [
+            .foregroundColor: UIColor(Color.spendyPrimary),
+            .font: UIFont.systemFont(ofSize: 10, weight: .bold)
+        ]
+
+        appearance.stackedLayoutAppearance = unselected
+        appearance.inlineLayoutAppearance = unselected
+        appearance.compactInlineLayoutAppearance = unselected
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 }

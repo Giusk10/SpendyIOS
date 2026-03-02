@@ -2,117 +2,70 @@ import SwiftUI
 
 struct UserProfileView: View {
     @Environment(\.dismiss) var dismiss
-    @StateObject private var authManager = AuthManager.shared
+    @ObservedObject private var authManager = AuthManager.shared
 
     @State private var name: String = ""
     @State private var surname: String = ""
     @State private var isLoading: Bool = false
+
+    // MARK: - Animation State
+    @State private var avatarVisible: Bool = false
+    @State private var readOnlyVisible: Bool = false
+    @State private var editableVisible: Bool = false
+    @State private var actionsVisible: Bool = false
 
     var body: some View {
         NavigationView {
             ZStack {
                 Color.spendyBackground.ignoresSafeArea()
 
-                VStack(spacing: 30) {
-                    Spacer().frame(height: 80)  // Increased top spacing as requested
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 24) {
 
-                    if let user = authManager.currentUser {
-                        // User Setup
-                        VStack(spacing: 20) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.spendyPrimary.opacity(0.1))
-                                    .frame(width: 100, height: 100)
+                        // MARK: - Avatar Section
+                        avatarSection
+                            .opacity(avatarVisible ? 1 : 0)
+                            .offset(y: avatarVisible ? 0 : -20)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.75).delay(0.05), value: avatarVisible)
 
-                                Text(user.initials)
-                                    .font(.system(size: 40, weight: .bold, design: .rounded))
-                                    .foregroundStyle(Color.spendyGradient)
-                            }
+                        if let user = authManager.currentUser {
 
-                            VStack(spacing: 16) {
-                                // Editable Fields
-                                VStack(spacing: 12) {
-                                    CustomTextField(
-                                        icon: "person", placeholder: "Nome", text: $name)
-                                    CustomTextField(
-                                        icon: "person", placeholder: "Cognome", text: $surname)
-                                }
-                                .padding(.horizontal, 20)
+                            // MARK: - Read-Only Info Card
+                            readOnlyCard(user: user)
+                                .opacity(readOnlyVisible ? 1 : 0)
+                                .offset(y: readOnlyVisible ? 0 : 18)
+                                .animation(.spring(response: 0.5, dampingFraction: 0.75).delay(0.15), value: readOnlyVisible)
 
-                                // Read-only info
-                                VStack(spacing: 4) {
-                                    Text(user.email)
-                                        .font(.subheadline)
-                                        .foregroundColor(.spendySecondaryText)
+                            // MARK: - Editable Fields Card
+                            editableCard
+                                .opacity(editableVisible ? 1 : 0)
+                                .offset(y: editableVisible ? 0 : 18)
+                                .animation(.spring(response: 0.5, dampingFraction: 0.75).delay(0.25), value: editableVisible)
 
-                                    Text("@\(user.username)")
-                                        .font(.caption)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 4)
-                                        .background(Color.spendyPrimary.opacity(0.1))
-                                        .cornerRadius(8)
-                                        .foregroundColor(.spendyPrimary)
-                                }
+                            // MARK: - Actions Card
+                            actionsCard(user: user)
+                                .opacity(actionsVisible ? 1 : 0)
+                                .offset(y: actionsVisible ? 0 : 18)
+                                .animation(.spring(response: 0.5, dampingFraction: 0.75).delay(0.35), value: actionsVisible)
 
-                                Button(action: {
-                                    saveProfile()
-                                }) {
-                                    if isLoading {
-                                        ProgressView()
-                                            .tint(.white)
-                                    } else {
-                                        Text("Salva Modifiche")
-                                            .fontWeight(.semibold)
+                        } else {
+                            ProgressView()
+                                .tint(.spendyPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 60)
+                                .onAppear {
+                                    Task {
+                                        await authManager.fetchUserProfile()
                                     }
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(
-                                    hasChanges(user: user)
-                                        ? AnyView(Color.spendyGradient)
-                                        : AnyView(Color.gray.opacity(0.3))
-                                )
-                                .foregroundColor(.white)
-                                .cornerRadius(12)
-                                .padding(.horizontal, 20)
-                                .disabled(!hasChanges(user: user) || isLoading)
-                                .animation(.easeInOut, value: hasChanges(user: user))
-                            }
                         }
-                        .padding(.top, 30)
-                    } else {
-                        ProgressView()
-                            .onAppear {
-                                Task {
-                                    await authManager.fetchUserProfile()
-                                }
-                            }
                     }
-
-                    Spacer()
-
-                    // Logout Button
-                    Button(action: {
-                        authManager.logout()
-                        dismiss()
-                    }) {
-                        HStack {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                            Text("Esci")
-                        }
-                        .font(.headline)
-                        .foregroundColor(.spendyRed)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.spendyRed.opacity(0.1))
-                        .cornerRadius(16)
-                    }
-                    .padding(.horizontal, 30)
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 40)
                 }
             }
-
-            .navigationBarHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Chiudi") {
@@ -123,14 +76,17 @@ struct UserProfileView: View {
                             }
                         }
                     }
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.spendyPrimary)
                 }
             }
+            .toolbarBackground(Color.spendyBackground, for: .navigationBar)
             .onAppear {
                 if let user = authManager.currentUser {
                     name = user.name
                     surname = user.surname
                 }
+                triggerStaggeredEntrance()
             }
             .onChange(of: authManager.currentUser) { _, newUser in
                 if let user = newUser {
@@ -142,6 +98,172 @@ struct UserProfileView: View {
             }
         }
     }
+
+    // MARK: - Avatar Section
+
+    private var avatarSection: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                // Outer gradient ring
+                Circle()
+                    .stroke(Color.spendyGradient, lineWidth: 3.5)
+                    .frame(width: 114, height: 114)
+
+                // Inner fill circle
+                Circle()
+                    .fill(Color.spendyGradientSubtle)
+                    .frame(width: 106, height: 106)
+
+                // Initials
+                if let user = authManager.currentUser {
+                    Text(user.initials)
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.spendyGradient)
+                }
+            }
+            .shadow(color: Color.spendyShadowPrimary, radius: 16, x: 0, y: 6)
+
+            if let user = authManager.currentUser {
+                Text(user.fullName)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(.spendyText)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Read-Only Info Card
+
+    private func readOnlyCard(user: User) -> some View {
+        SpendyCard(style: .default, padding: 0) {
+            VStack(spacing: 0) {
+                profileRow(
+                    icon: "envelope.fill",
+                    iconColor: .spendyBlue,
+                    iconBackground: Color.spendyBlueLight,
+                    title: "Email",
+                    value: user.email,
+                    showDivider: true
+                )
+                profileRow(
+                    icon: "at",
+                    iconColor: .spendyAccent,
+                    iconBackground: Color.spendyAccent.opacity(0.1),
+                    title: "Username",
+                    value: "@\(user.username)",
+                    showDivider: false
+                )
+            }
+        }
+    }
+
+    private func profileRow(
+        icon: String,
+        iconColor: Color,
+        iconBackground: Color,
+        title: String,
+        value: String,
+        showDivider: Bool
+    ) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(iconBackground)
+                        .frame(width: 36, height: 36)
+                    Image(systemName: icon)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(iconColor)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.spendyTertiaryText)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    Text(value)
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundColor(.spendySecondaryText)
+                }
+
+                Spacer()
+
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.spendyTertiaryText)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+
+            if showDivider {
+                Rectangle()
+                    .fill(Color.spendyBorderSubtle)
+                    .frame(height: 0.5)
+                    .padding(.leading, 66)
+            }
+        }
+    }
+
+    // MARK: - Editable Fields Card
+
+    private var editableCard: some View {
+        SpendyCard(style: .default, padding: 16) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 8) {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Color.spendyGradient)
+                    Text("Modifica Profilo")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.spendySecondaryText)
+                }
+                .padding(.bottom, 2)
+
+                SpendyTextField(
+                    label: "Nome",
+                    text: $name,
+                    icon: "person.fill",
+                    autocapitalization: .words
+                )
+
+                SpendyTextField(
+                    label: "Cognome",
+                    text: $surname,
+                    icon: "person.fill",
+                    autocapitalization: .words
+                )
+            }
+        }
+    }
+
+    // MARK: - Actions Card
+
+    private func actionsCard(user: User) -> some View {
+        VStack(spacing: 12) {
+            SpendyButton(
+                "Salva Modifiche",
+                variant: .primary,
+                isLoading: isLoading,
+                isDisabled: !hasChanges(user: user),
+                leadingIcon: "checkmark.circle.fill"
+            ) {
+                saveProfile()
+            }
+
+            SpendyButton(
+                "Esci dall'account",
+                variant: .destructive,
+                leadingIcon: "rectangle.portrait.and.arrow.right"
+            ) {
+                authManager.logout()
+                dismiss()
+            }
+        }
+    }
+
+    // MARK: - Helpers
 
     private func hasChanges(user: User) -> Bool {
         return name != user.name || surname != user.surname
@@ -158,23 +280,12 @@ struct UserProfileView: View {
             }
         }
     }
-}
 
-struct CustomTextField: View {
-    let icon: String
-    let placeholder: String
-    @Binding var text: String
-
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(.spendySecondaryText)
-            TextField(placeholder, text: $text)
-                .foregroundColor(.spendyText)
-        }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+    private func triggerStaggeredEntrance() {
+        avatarVisible = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) { readOnlyVisible = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) { editableVisible = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) { actionsVisible = true }
     }
 }
+

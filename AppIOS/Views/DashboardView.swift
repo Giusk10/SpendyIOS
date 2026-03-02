@@ -45,23 +45,30 @@ struct DashboardView: View {
                 Color.spendyBackground
                     .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: 24) {  // Spaziatura aumentata per "aria"
-                        balanceCard
+                if viewModel.isLoading && viewModel.expenses.isEmpty {
+                    ScrollView(showsIndicators: false) {
+                        SkeletonDashboard()
                             .padding(.top, 10)
-
-                        filterSection
-
-                        if let errorMessage = viewModel.errorMessage {
-                            errorBanner(errorMessage)
-                        }
-
-                        recentTransactionsSection
-
-                        uploadSection
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 100)
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        LazyVStack(spacing: 20) {
+                            balanceCard
+                                .padding(.top, 10)
+
+                            filterSection
+
+                            if let errorMessage = viewModel.errorMessage {
+                                errorBanner(errorMessage)
+                            }
+
+                            recentTransactionsSection
+
+                            uploadSection
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 100)
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -94,129 +101,220 @@ struct DashboardView: View {
     // MARK: - Componenti UI Estratti
 
     private var balanceCard: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                // Sfondo ottimizzato
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.spendyPrimary, Color.spendyAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+        ZStack(alignment: .topTrailing) {
+            // Rich deep gradient background
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Color.spendyGradientDeep)
 
-                // Elementi decorativi statici
-                decorativeCircles
+            // Decorative orbs layered inside the card
+            decorativeOrbs
 
-                VStack(spacing: 16) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Saldo Totale")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.white.opacity(0.9))
+            // Gradient border overlay
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.25),
+                            Color.white.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
 
-                            Text(totalBalance, format: .currency(code: "EUR"))
-                                .font(.system(size: 34, weight: .bold, design: .rounded))  // Font leggermente ridotto
-                                .foregroundColor(.white)
-                                .contentTransition(.numericText())
-                        }
-                        Spacer()
+            VStack(spacing: 20) {
+                // Top row: balance + trend icon
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Saldo Totale")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.75))
+                            .tracking(0.5)
 
-                        // Icona trend
-                        trendIcon
+                        Text(totalBalance, format: .currency(code: "EUR"))
+                            .font(.system(size: 38, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .contentTransition(.numericText())
+                            .shadow(
+                                color: Color.spendyAccentDeep.opacity(0.4),
+                                radius: 8,
+                                x: 0,
+                                y: 4
+                            )
                     }
 
-                    statsRow
+                    Spacer()
+
+                    trendIcon
                 }
-                .padding(24)
+
+                // Stats row: income + expenses as individual cards
+                balanceStatsRow
             }
-            .frame(height: 200)
-            // Disegna il contenuto come una bitmap off-screen (GPU acceleration)
-            .drawingGroup()
+            .padding(24)
         }
+        .frame(height: 210)
+        .shadow(color: Color.spendyShadowPrimary, radius: 24, x: 0, y: 10)
+        .shadow(color: Color.spendyShadowFar, radius: 8, x: 0, y: 2)
+        // Disegna il contenuto come una bitmap off-screen (GPU acceleration)
+        .drawingGroup()
     }
 
-    private var decorativeCircles: some View {
-        Group {
+    private var decorativeOrbs: some View {
+        ZStack {
+            // Large orb top-right
             Circle()
-                .fill(Color.white.opacity(0.1))
-                .frame(width: 200)
-                .offset(x: 100, y: -50)
-                .blur(radius: 1)  // Blur leggero per fondere meglio
+                .fill(Color.white.opacity(0.07))
+                .frame(width: 180, height: 180)
+                .blur(radius: 2)
+                .offset(x: 90, y: -60)
 
+            // Medium orb bottom-left
             Circle()
-                .fill(Color.white.opacity(0.08))
-                .frame(width: 150)
-                .offset(x: -120, y: 60)
+                .fill(Color.spendyAccentLight.opacity(0.12))
+                .frame(width: 130, height: 130)
                 .blur(radius: 1)
+                .offset(x: -100, y: 70)
+
+            // Small accent orb mid-right
+            Circle()
+                .fill(Color.white.opacity(0.05))
+                .frame(width: 80, height: 80)
+                .offset(x: 60, y: 50)
         }
+        .allowsHitTesting(false)
     }
 
     private var trendIcon: some View {
-        Circle()
-            .fill(.ultraThinMaterial)
-            .frame(width: 44, height: 44)  // Ridotto leggermente
-            .overlay {
-                Image(systemName: totalBalance >= 0 ? "arrow.up.right" : "arrow.down.right")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-            }
+        ZStack {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(width: 46, height: 46)
+                .overlay {
+                    Circle()
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                }
+
+            Image(systemName: totalBalance >= 0 ? "arrow.up.right" : "arrow.down.right")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.white)
+        }
+        .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
     }
 
-    private var statsRow: some View {
-        HStack(spacing: 0) {  // Spacing gestito dai frame interni
-            StatItem(
-                title: "Entrate",
-                // Calcolo ottimizzato (meglio spostarlo nel VM)
-                value: viewModel.expenses.lazy.filter { $0.amount > 0 }.reduce(0) {
-                    $0 + $1.amount
-                },
-                icon: "arrow.down.left",
-                positive: true
-            )
+    private var balanceStatsRow: some View {
+        HStack(spacing: 12) {
+            // Income card
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(Color.spendyGreen.opacity(0.25))
+                        .frame(width: 34, height: 34)
 
-            Divider()
-                .frame(height: 30)
-                .background(Color.white.opacity(0.3))
-                .padding(.horizontal, 16)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(hex: "6EF0C4"))
+                }
 
-            StatItem(
-                title: "Uscite",
-                value: abs(
-                    viewModel.expenses.lazy.filter { $0.amount < 0 }.reduce(0) { $0 + $1.amount }),
-                icon: "arrow.up.right",
-                positive: false
-            )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("ENTRATE")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white.opacity(0.6))
+                        .tracking(0.8)
+
+                    Text(
+                        viewModel.expenses.lazy.filter { $0.amount > 0 }.reduce(0) {
+                            $0 + $1.amount
+                        },
+                        format: .currency(code: "EUR")
+                    )
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+            }
+
+            // Expenses card
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(Color.spendyRed.opacity(0.25))
+                        .frame(width: 34, height: 34)
+
+                    Image(systemName: "arrow.down.left")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(hex: "FF9494"))
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("USCITE")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white.opacity(0.6))
+                        .tracking(0.8)
+
+                    Text(
+                        abs(
+                            viewModel.expenses.lazy.filter { $0.amount < 0 }.reduce(0) {
+                                $0 + $1.amount
+                            }
+                        ),
+                        format: .currency(code: "EUR")
+                    )
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+            }
         }
     }
 
     private var filterSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 ForEach(TransactionFilter.allCases, id: \.self) { filter in
                     FilterChip(
                         title: filter.rawValue,
                         isSelected: selectedFilter == filter,
                         action: {
-                            withAnimation(.smooth(duration: 0.3)) {  // Animazione più rapida
+                            withAnimation(.smooth(duration: 0.3)) {
                                 selectedFilter = filter
                             }
                         }
                     )
                 }
             }
-            .padding(.horizontal, 4)  // Evita clipping dell'ombra
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
         }
     }
 
     private var recentTransactionsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Section header
             HStack {
                 Text("Transazioni Recenti")
-                    .font(.title3)
-                    .fontWeight(.bold)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundColor(.spendyText)
 
                 Spacer()
@@ -224,10 +322,9 @@ struct DashboardView: View {
                 NavigationLink(destination: AllExpensesView()) {
                     HStack(spacing: 4) {
                         Text("Vedi tutte")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 14, weight: .semibold))
                         Image(systemName: "chevron.right")
-                            .font(.caption)
+                            .font(.system(size: 11, weight: .semibold))
                     }
                     .foregroundStyle(Color.spendyGradient)
                 }
@@ -236,61 +333,58 @@ struct DashboardView: View {
             if filteredExpenses.isEmpty {
                 emptyStateView
             } else {
-                LazyVStack(spacing: 0) {  // LazyVStack è meglio per performance anche se sono pochi elementi
-                    // Prendiamo max 4 elementi senza creare array intermedi pesanti
-                    ForEach(Array(filteredExpenses.prefix(4)), id: \.id) { expense in
-                        NavigationLink(destination: ExpenseDetailView(expense: expense)) {
-                            ExpenseRow(expense: expense)
-                                .contentShape(Rectangle())  // Migliora l'area di tocco
-                        }
-                        .buttonStyle(.plain)
+                SpendyCard(style: .default, padding: 0, cornerRadius: 20) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(filteredExpenses.prefix(4)), id: \.id) { expense in
+                            NavigationLink(destination: ExpenseDetailView(expense: expense)) {
+                                ExpenseRow(expense: expense)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
 
-                        // Logica divisore semplificata
-                        if expense.id != filteredExpenses.prefix(4).last?.id {
-                            Divider().padding(.leading, 76)
+                            if expense.id != filteredExpenses.prefix(4).last?.id {
+                                Divider()
+                                    .padding(.leading, 74)
+                                    .padding(.trailing, 16)
+                            }
                         }
                     }
                 }
-                .background(Color.white)
-                .cornerRadius(20)
-                .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 2)  // Ombra alleggerita
             }
         }
     }
 
     private var uploadSection: some View {
         NavigationLink(destination: UploadView()) {
-            HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(Color.spendyPrimary.opacity(0.1))
-                        .frame(width: 48, height: 48)
+            SpendyCard(style: .default, padding: 16, cornerRadius: 20) {
+                HStack(spacing: 16) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.spendyGradientSubtle)
+                            .frame(width: 48, height: 48)
 
-                    Image(systemName: "doc.badge.plus")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(Color.spendyGradient)
+                        Image(systemName: "doc.badge.plus")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(Color.spendyGradient)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Importa CSV")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.spendyText)
+
+                        Text("Carica transazioni dalla banca")
+                            .font(.system(size: 13))
+                            .foregroundColor(.spendySecondaryText)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.spendyTertiaryText)
                 }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Importa CSV")
-                        .font(.headline)
-                        .foregroundColor(.spendyText)
-
-                    Text("Carica transazioni dalla banca")
-                        .font(.caption)
-                        .foregroundColor(.spendySecondaryText)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.spendySecondaryText.opacity(0.5))
             }
-            .padding(16)
-            .background(Color.white)
-            .cornerRadius(20)
-            .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }
@@ -300,19 +394,27 @@ struct DashboardView: View {
     private var leadingToolbarItem: ToolbarItem<(), some View> {
         ToolbarItem(placement: .navigationBarLeading) {
             Button(action: { showingProfile = true }) {
-                Group {
-                    if let user = authManager.currentUser {
-                        Text(user.initials)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                    } else {
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 16))
+                ZStack {
+                    // Gradient ring
+                    Circle()
+                        .fill(Color.spendyGradient)
+                        .frame(width: 36, height: 36)
+
+                    Circle()
+                        .fill(Color.spendyGradientDeep)
+                        .frame(width: 32, height: 32)
+
+                    Group {
+                        if let user = authManager.currentUser {
+                            Text(user.initials)
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                        } else {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
                     }
+                    .foregroundStyle(.white)
                 }
-                .foregroundStyle(.white)
-                .frame(width: 34, height: 34)  // Ridotto leggermente
-                .background(Color.spendyGradient)
-                .clipShape(Circle())
             }
         }
     }
@@ -320,26 +422,40 @@ struct DashboardView: View {
     private var principalToolbarItem: ToolbarItem<(), some View> {
         ToolbarItem(placement: .principal) {
             Text("Spendy")
-                .font(.system(size: 18, weight: .bold, design: .rounded))  // Ridotto per eleganza
+                .font(.system(size: 19, weight: .bold, design: .rounded))
                 .foregroundStyle(Color.spendyGradient)
         }
     }
 
     private var trailingToolbarItem: ToolbarItem<(), some View> {
         ToolbarItem(placement: .navigationBarTrailing) {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Button(action: { showingDeleteAlert = true }) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.spendyRed.opacity(viewModel.expenses.isEmpty ? 0.3 : 0.9))
+                    ZStack {
+                        Circle()
+                            .fill(
+                                viewModel.expenses.isEmpty
+                                ? Color.spendyBackgroundDark
+                                : Color.spendyRedLight
+                            )
+                            .frame(width: 34, height: 34)
+
+                        Image(systemName: "trash")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(
+                                viewModel.expenses.isEmpty
+                                ? .spendyTertiaryText
+                                : .spendyRed
+                            )
+                    }
                 }
                 .disabled(viewModel.expenses.isEmpty)
 
                 NavigationLink(destination: AddExpenseView()) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 26))
+                        .font(.system(size: 28))
                         .foregroundStyle(Color.spendyGradient)
-                        .symbolRenderingMode(.hierarchical)  // Render più moderno
+                        .symbolRenderingMode(.hierarchical)
                 }
             }
         }
@@ -350,34 +466,49 @@ struct DashboardView: View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.spendyOrange)
+                .font(.system(size: 16, weight: .semibold))
+
             Text(message)
                 .font(.subheadline)
                 .foregroundColor(.spendyText)
+
             Spacer()
         }
-        .padding()
-        .background(Color.spendyOrange.opacity(0.1))
-        .cornerRadius(12)
+        .padding(16)
+        .background(Color.spendyOrangeLight)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.spendyOrange.opacity(0.25), lineWidth: 1)
+        }
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "tray")
-                .font(.system(size: 40))
-                .foregroundStyle(Color.spendyGradient.opacity(0.8))
+        SpendyCard(style: .gradientBordered, padding: 36, cornerRadius: 20) {
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.spendyGradientSubtle)
+                        .frame(width: 72, height: 72)
 
-            Text("Nessuna transazione")
-                .font(.headline)
-                .foregroundColor(.spendyText)
+                    Image(systemName: "tray.fill")
+                        .font(.system(size: 30, weight: .medium))
+                        .foregroundStyle(Color.spendyGradient)
+                }
+
+                VStack(spacing: 6) {
+                    Text("Nessuna transazione")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.spendyText)
+
+                    Text("Le tue transazioni appariranno qui")
+                        .font(.system(size: 13))
+                        .foregroundColor(.spendySecondaryText)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
-        .padding(30)
-        .background(Color.white.opacity(0.5))  // Più leggero
-        .cornerRadius(20)
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.black.opacity(0.05), lineWidth: 1)
-        )
     }
 }
 
@@ -392,41 +523,48 @@ struct ExpenseRow: View {
     private var categoryColor: Color { CategoryMapper.color(for: expense.category) }
     private var categoryIcon: String { CategoryMapper.icon(for: expense.category) }
 
+    private var isIncome: Bool { expense.amount >= 0 }
+
     var body: some View {
         HStack(spacing: 14) {
+            // Category icon with colored circular background
             ZStack {
                 Circle()
-                    .fill(categoryColor.opacity(0.12))  // Opacità ridotta per look più clean
-                    .frame(width: 44, height: 44)
+                    .fill(categoryColor.opacity(0.14))
+                    .frame(width: 46, height: 46)
 
                 Image(systemName: categoryIcon)
-                    .font(.system(size: 18, weight: .medium))  // Font weight ridotto
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundColor(categoryColor)
             }
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(expense.userDescription)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.spendyText)
                     .lineLimit(1)
 
                 if let date = expense.date {
                     // QUI SI USA L'ESTENSIONE DI DATE
                     Text(date.formattedDescription(withTime: true))
-                        .font(.caption2)  // Testo più piccolo e discreto
+                        .font(.system(size: 12))
                         .foregroundColor(.spendySecondaryText)
                 }
             }
 
             Spacer()
 
+            // Amount with semantic color chip
             Text(expense.amount, format: .currency(code: expense.currency ?? "EUR"))
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(expense.amount >= 0 ? .spendyGreen : .spendyText)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundColor(isIncome ? .spendyGreen : .spendyRed)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(isIncome ? Color.spendyGreenLight : Color.spendyRedLight)
+                .clipShape(Capsule())
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 }
 
@@ -471,8 +609,7 @@ struct FilterChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(isSelected ? .white : .spendySecondaryText)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
@@ -480,12 +617,29 @@ struct FilterChip: View {
                     if isSelected {
                         Capsule()
                             .fill(Color.spendyGradient)
+                            .shadow(
+                                color: Color.spendyShadowPrimary,
+                                radius: 8,
+                                x: 0,
+                                y: 3
+                            )
                     } else {
                         Capsule()
-                            .fill(Color.white)
+                            .fill(Color.spendySurface)
+                            .overlay {
+                                Capsule()
+                                    .stroke(Color.spendyBorderSubtle, lineWidth: 1)
+                            }
+                            .shadow(
+                                color: Color.spendyShadowNear,
+                                radius: 4,
+                                x: 0,
+                                y: 2
+                            )
                     }
                 }
         }
         .buttonStyle(.plain)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 }
