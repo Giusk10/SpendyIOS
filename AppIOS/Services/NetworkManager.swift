@@ -20,9 +20,6 @@ class NetworkManager {
         let request = try prepareRequest(url: url, method: method, body: body)
 
         print("🚀 [REQUEST] \(method) \(url.absoluteString)")
-        if let body = body {
-            print("📦 [BODY] \(body)")
-        }
 
         // 2. Perform Request
         do {
@@ -77,7 +74,7 @@ class NetworkManager {
         }
 
         if let body = body {
-            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
 
         return request

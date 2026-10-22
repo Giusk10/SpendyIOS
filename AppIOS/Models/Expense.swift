@@ -2,12 +2,6 @@ import Foundation
 
 // MARK: - Date Parser Helper
 struct DateParser {
-    private static let formatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
-
     private static let formats = [
         "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
         "yyyy-MM-dd'T'HH:mm:ssZ",
@@ -18,11 +12,18 @@ struct DateParser {
         "dd-MM-yyyy",
     ]
 
+    // Keep one immutable formatter per accepted format instead of reconfiguring it for every row.
+    private static let formatters: [DateFormatter] = formats.map { format in
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = format
+        return formatter
+    }
+
     static func parse(_ string: String?) -> Date? {
         guard let string = string, !string.isEmpty else { return nil }
 
-        for format in formats {
-            formatter.dateFormat = format
+        for formatter in formatters {
             if let date = formatter.date(from: string) {
                 return date
             }
@@ -133,8 +134,4 @@ struct Expense: Identifiable, Codable, Equatable {
         // Nota: self.date viene ignorato perché è una proprietà derivata
     }
 
-    static func == (lhs: Expense, rhs: Expense) -> Bool {
-        return lhs.id == rhs.id && lhs.amount == rhs.amount
-            && lhs.userDescription == rhs.userDescription && lhs.date == rhs.date
-    }
 }

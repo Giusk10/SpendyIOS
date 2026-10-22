@@ -8,7 +8,7 @@ struct AppIOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.light)
+                .tint(.spendyPrimary)
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .background {
                         authManager.lockApp()

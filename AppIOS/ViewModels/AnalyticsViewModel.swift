@@ -1,25 +1,40 @@
-import Combine
 import Foundation
+import Observation
 
 @MainActor
-class AnalyticsViewModel: ObservableObject {
-    @Published var totalBalance: Double = 0.0
-    @Published var averageExpense: Double = 0.0
-    @Published var highestExpense: Double = 0.0
-    @Published var totalTransactions: Int = 0
-    @Published var monthlyData: [MonthlyMetric] = []
-    @Published var topCategories: [CategoryMetric] = []
+@Observable
+final class AnalyticsViewModel {
+    private(set) var totalBalance = 0.0
+    private(set) var averageExpense = 0.0
+    private(set) var highestExpense = 0.0
+    private(set) var totalTransactions = 0
+    private(set) var monthlyData: [MonthlyMetric] = []
+    private(set) var topCategories: [CategoryMetric] = []
+    private(set) var isLoading = false
+    private(set) var isChartLoading = false
+    var errorMessage: String?
+    var chartError: String?
+    var filterMode: FilterMode = .all
+    var selectedDateRange: (start: Date, end: Date) = (Date(), Date())
+    var selectedMonth = Calendar.current.component(.month, from: Date())
+    var selectedYearInt = Calendar.current.component(.year, from: Date())
+    private var loadedRevision: Int?
+    private var requestID = UUID()
+    private var chartRequestID = UUID()
+    private(set) var appliedFilterDescription = "Tutte le spese"
 
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String?
+    enum FilterMode: String, CaseIterable {
+        case all = "Tutte"
+        case month = "Mese"
+        case dateRange = "Intervallo"
+    }
 
-    struct monthlyMetric: Identifiable {
-        var id: String { month }
+    struct MonthlyMetric: Identifiable {
+        var id: Date { date }
         let month: String
         let amount: Double
-        let date: Date  // For sorting
+        let date: Date
     }
-    typealias MonthlyMetric = monthlyMetric
 
     struct CategoryMetric: Identifiable {
         var id: String { name }
@@ -28,67 +43,48 @@ class AnalyticsViewModel: ObservableObject {
         let count: Int
     }
 
-    // Filter State
-    @Published var filterMode: FilterMode = .all
-    @Published var selectedDateRange: (start: Date, end: Date) = (Date(), Date())
-    @Published var selectedMonth: Int = Calendar.current.component(.month, from: Date())
-    @Published var selectedYearInt: Int = Calendar.current.component(.year, from: Date())
-
-    enum FilterMode {
-        case all
-        case month
-        case dateRange
+    func loadIfNeeded() async {
+        if loadedRevision != ExpenseService.shared.revision { await applyFilters() }
     }
 
-    func loadData() {
-        isLoading = true
-        errorMessage = nil
-
-        Task {
-            do {
-                let expenses = try await ExpenseService.shared.fetchExpenses()
-                await MainActor.run {
-                    processExpenses(expenses)
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    isLoading = false
-                    errorMessage = "Failed to load data: \(error.localizedDescription)"
-                }
-            }
+    func applyFilters() async {
+        if filterMode == .dateRange && selectedDateRange.start > selectedDateRange.end {
+            errorMessage = "La data finale deve essere successiva alla data iniziale."
+            return
         }
-    }
-
-    func applyFilters() {
+        let id = UUID()
+        requestID = id
+        let revision = ExpenseService.shared.revision
+        let mode = filterMode
         isLoading = true
         errorMessage = nil
-
-        Task {
-            do {
-                var expenses: [Expense] = []
-
-                switch filterMode {
-                case .all:
-                    expenses = try await ExpenseService.shared.fetchExpenses()
-                case .month:
-                    expenses = try await ExpenseService.shared.fetchExpensesByMonth(
-                        month: selectedMonth, year: selectedYearInt)
-                case .dateRange:
-                    expenses = try await ExpenseService.shared.fetchExpensesByDate(
-                        start: selectedDateRange.start, end: selectedDateRange.end)
-                }
-
-                await MainActor.run {
-                    processExpenses(expenses)
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    isLoading = false
-                    errorMessage = "Failed to load expenses: \(error.localizedDescription)"
-                }
+        defer { if requestID == id { isLoading = false } }
+        do {
+            let expenses: [Expense]
+            switch mode {
+            case .all:
+                expenses = try await ExpenseService.shared.fetchExpenses()
+            case .month:
+                expenses = try await ExpenseService.shared.fetchExpensesByMonth(
+                    month: selectedMonth, year: selectedYearInt)
+            case .dateRange:
+                expenses = try await ExpenseService.shared.fetchExpensesByDate(
+                    start: selectedDateRange.start, end: selectedDateRange.end)
             }
+            try Task.checkCancellation()
+            guard requestID == id else { return }
+            processExpenses(expenses)
+            loadedRevision = revision
+            switch mode {
+            case .all: appliedFilterDescription = "Tutte le spese"
+            case .month:
+                appliedFilterDescription = "\(Calendar.current.monthSymbols[selectedMonth - 1]) \(selectedYearInt)"
+            case .dateRange:
+                appliedFilterDescription = "\(selectedDateRange.start.formatted(date: .abbreviated, time: .omitted)) – \(selectedDateRange.end.formatted(date: .abbreviated, time: .omitted))"
+            }
+        } catch is CancellationError {
+        } catch {
+            if !Task.isCancelled { errorMessage = "Impossibile caricare le analisi. \(error.localizedDescription)" }
         }
     }
 
@@ -118,51 +114,26 @@ class AnalyticsViewModel: ObservableObject {
         }.sorted(by: { $0.amount > $1.amount })
     }
 
-    // Legacy/Comparison method - can keep or remove if we rely fully on local agg
-    func fetchMonthlyStats(year: String) {
-        guard let yearInt = Int(year) else { return }
 
-        Task {
-            if let amounts = await ExpenseService.shared.getMonthlyStats(year: yearInt) {
-                await MainActor.run {
-                    self.monthlyData = processMonthlyStats(amounts, year: yearInt)
-                }
-            }
+    func fetchMonthlyStats(year: Int) async {
+        let id = UUID()
+        chartRequestID = id
+        isChartLoading = true
+        chartError = nil
+        defer { if chartRequestID == id { isChartLoading = false } }
+        let amounts = await ExpenseService.shared.getMonthlyStats(year: year)
+        guard chartRequestID == id, !Task.isCancelled else { return }
+        guard let amounts else {
+            monthlyData = []
+            chartError = "Impossibile caricare l'andamento mensile."
+            return
         }
-    }
-
-    private func processMonthlyStats(_ amounts: [String: Double], year: Int) -> [MonthlyMetric] {
-        let calendar = Calendar.current
-        var metrics: [MonthlyMetric] = []
-
-        // Output format check: "MMM" for chart calls
-        let outputFormatter = DateFormatter()
-        outputFormatter.dateFormat = "MMM"
-
-        // Helper to format key
-        let keyFormatter = DateFormatter()
-        keyFormatter.dateFormat = "yyyy-MM"
-
-        for month in 1...12 {
-            var components = DateComponents()
-            components.year = year
-            components.month = month
-            components.day = 1
-
-            if let date = calendar.date(from: components) {
-                let key = keyFormatter.string(from: date)
-                let amount = amounts[key] ?? 0.0  // Default to 0 if missing
-                let monthName = outputFormatter.string(from: date)
-
-                metrics.append(MonthlyMetric(month: monthName, amount: abs(amount), date: date))
-            }
+        let calendar = Calendar(identifier: .gregorian)
+        monthlyData = (1...12).compactMap { month in
+            guard let date = calendar.date(from: DateComponents(year: year, month: month, day: 1)) else { return nil }
+            let key = String(format: "%04d-%02d", year, month)
+            return MonthlyMetric(month: date.formatted(.dateTime.month(.abbreviated)),
+                                 amount: abs(amounts[key] ?? 0), date: date)
         }
-
-        return metrics.sorted(by: { $0.date < $1.date })
-    }
-
-    func updateFilters(year: String) {
-        fetchMonthlyStats(year: year)
-        selectedYearInt = Int(year) ?? selectedYearInt
     }
 }

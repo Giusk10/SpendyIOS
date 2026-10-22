@@ -9,7 +9,30 @@ class ExpenseService: ObservableObject {
 
     private init() {}
 
+    @Published private(set) var revision = 0
+
+    func invalidateSession() {
+        fetchTask?.task.cancel()
+        fetchTask = nil
+        revision += 1
+    }
+
+    private var fetchTask: (revision: Int, task: Task<[Expense], Error>)?
+
     func fetchExpenses() async throws -> [Expense] {
+        if let pending = fetchTask, pending.revision == revision {
+            return try await pending.task.value
+        }
+        let requestRevision = revision
+        let task = Task { try await requestExpenses() }
+        fetchTask = (requestRevision, task)
+        defer {
+            if fetchTask?.revision == requestRevision { fetchTask = nil }
+        }
+        return try await task.value
+    }
+
+    private func requestExpenses() async throws -> [Expense] {
         guard let url = URL(string: "\(baseURL)/getExpenses") else { throw URLError(.badURL) }
         return try await NetworkManager.shared.performRequest(
             url: url, responseType: [Expense].self)
@@ -35,6 +58,7 @@ class ExpenseService: ObservableObject {
         // Use generic request ignoring return
         let _: Expense = try await NetworkManager.shared.performRequest(
             url: url, method: "POST", body: body, responseType: Expense.self)
+        revision += 1
     }
 
     func deleteExpense(_ expense: Expense) async throws {
@@ -42,6 +66,7 @@ class ExpenseService: ObservableObject {
         let body = ["expenseId": expense.id]
         try await NetworkManager.shared.performRequestNoResponse(
             url: url, method: "DELETE", body: body)
+        revision += 1
     }
 
     func updateExpense(_ expense: Expense) async throws {
@@ -59,16 +84,20 @@ class ExpenseService: ObservableObject {
 
         let _: Expense = try await NetworkManager.shared.performRequest(
             url: url, method: "POST", body: body, responseType: Expense.self)
+        revision += 1
     }
 
     func importCSV(data: Data, fileName: String) async throws -> Bool {
         // UploadFile logic
-        return try await uploadFile(endpoint: "/import", fileData: data, fileName: fileName)
+        let success = try await uploadFile(endpoint: "/import", fileData: data, fileName: fileName)
+        if success { revision += 1 }
+        return success
     }
 
     func deleteAllExpenses() async throws {
         guard let url = URL(string: "\(baseURL)/deleteAllExpenses") else { throw URLError(.badURL) }
         try await NetworkManager.shared.performRequestNoResponse(url: url, method: "DELETE")
+        revision += 1
     }
 
     func getMonthlyStats(year: Int) async -> [String: Double]? {

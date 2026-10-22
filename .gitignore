@@ -1,3 +1,8 @@
 /info/
 .agent/workflows/Swift-Architect.md
 .agent/workflows/UI-UX-IOS-Expert.md
+
+# Build and package artifacts
+.build/
+build/
+DerivedData/

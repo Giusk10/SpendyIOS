@@ -10,6 +10,7 @@ enum AuthState {
     case pinSetup
 }
 
+@MainActor
 class AuthManager: ObservableObject {
     static let shared = AuthManager()
 
@@ -32,7 +33,7 @@ class AuthManager: ObservableObject {
         if getRefreshToken() != nil {
             // We have a session, but app was killed.
             // Go to Locked state immediately.
-            self.authState = .locked
+            self.authState = hasPin() ? .locked : .pinSetup
         } else {
             self.authState = .unauthenticated
         }
@@ -81,9 +82,6 @@ class AuthManager: ObservableObject {
 
         if pin == storedPin {
             self.authState = .authenticated
-            Task {
-                await fetchUserProfile()
-            }
             return true
         }
         return false
@@ -91,27 +89,27 @@ class AuthManager: ObservableObject {
 
     @Published var isBiometricAuthenticationInProgress: Bool = false
 
+    func canUseBiometrics() -> Bool {
+        LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+    }
+
     func unlockWithBiometrics() {
+        guard authState == .locked, !isBiometricAuthenticationInProgress else { return }
         let context = LAContext()
         var error: NSError?
 
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
             let reason = "Sblocca l'app per accedere ai tuoi dati"
 
-            DispatchQueue.main.async {
-                self.isBiometricAuthenticationInProgress = true
-            }
+            self.isBiometricAuthenticationInProgress = true
 
             context.evaluatePolicy(
                 .deviceOwnerAuthenticationWithBiometrics, localizedReason: reason
             ) { success, authenticationError in
                 DispatchQueue.main.async {
                     self.isBiometricAuthenticationInProgress = false
-                    if success {
+                    if success && self.authState == .locked {
                         self.authState = .authenticated
-                        Task {
-                            await self.fetchUserProfile()
-                        }
                     } else {
                         // Failed, stay locked (user can use PIN)
                         print("Biometric auth failed")
@@ -127,7 +125,7 @@ class AuthManager: ObservableObject {
         // If we are .authenticated or .pinSetup (maybe?) or .locked, we go to .locked (if we have tokens).
 
         if getRefreshToken() != nil {
-            self.authState = .locked
+            self.authState = hasPin() ? .locked : .pinSetup
         } else {
             self.authState = .unauthenticated
         }
@@ -197,6 +195,7 @@ class AuthManager: ObservableObject {
                 errorMessage = error.localizedDescription
             }
         }
+        if errorMessage == nil { errorMessage = "Accesso non riuscito. Controlla le credenziali e riprova." }
         return false
     }
 
@@ -204,7 +203,21 @@ class AuthManager: ObservableObject {
 
     // MARK: - User Profile
 
+    private var profileTask: Task<Void, Never>?
+
     func fetchUserProfile() async {
+        if let profileTask {
+            await profileTask.value
+            return
+        }
+        let task = Task { await requestUserProfile() }
+        profileTask = task
+        await task.value
+        profileTask = nil
+    }
+
+    private func requestUserProfile() async {
+        let sessionToken = getRefreshToken()
         guard let url = URL(string: "\(baseURL)/profile") else { return }
 
         // Manually construct request to avoid dependency loop with NetworkManager if possible,
@@ -227,14 +240,10 @@ class AuthManager: ObservableObject {
 
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                 let user = try JSONDecoder().decode(User.self, from: data)
-                print("✅ [AUTH] Profile fetched successfully: \(user.username)")
+                guard sessionToken == getRefreshToken() else { return }
                 await MainActor.run {
                     self.currentUser = user
                 }
-            } else {
-                print(
-                    "⚠️ [AUTH] Failed to fetch profile: \(String(data: data, encoding: .utf8) ?? "Unknown error")"
-                )
             }
         } catch {
             print("❌ [AUTH] Error fetching profile: \(error)")
@@ -256,16 +265,14 @@ class AuthManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                 // Refresh profile to get updated data (and confirm save)
                 await fetchUserProfile()
                 return true
             } else {
-                print(
-                    "Failed to update profile: \(String(data: data, encoding: .utf8) ?? "Unknown error")"
-                )
+                // Keep personal data out of logs.
                 return false
             }
         } catch {
@@ -346,7 +353,7 @@ class AuthManager: ObservableObject {
         let body: [String: String] = ["refreshToken": refreshToken]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-        print("🔄 [AUTH] Refreshing session with token: \(refreshToken)")
+        // Never log credentials or refresh tokens.
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -374,13 +381,16 @@ class AuthManager: ObservableObject {
     }
 
     func logout() {
+        profileTask?.cancel()
+        profileTask = nil
+        ExpenseService.shared.invalidateSession()
         clearTokens()
         // Delete PIN to force setup next time as requested
         deleteKeychain(account: kUserPIN)
 
-        DispatchQueue.main.async {
-            self.authState = .unauthenticated
-        }
+        currentUser = nil
+        errorMessage = nil
+        self.authState = .unauthenticated
     }
 
     // MARK: - Private Helpers
