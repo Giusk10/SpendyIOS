@@ -7,19 +7,41 @@ struct LockView: View {
     @State private var showingLogout = false
     @State private var supportsBiometrics = false
 
+    private var greetingTitle: String {
+        guard let name = authManager.currentUser?.name,
+              !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return "Bentornato in Spendy"
+        }
+        let hour = Calendar.current.component(.hour, from: Date())
+        let isItalian = Locale.current.language.languageCode?.identifier == "it"
+        let salutation: String
+        if hour >= 5 && hour < 12 {
+            salutation = isItalian ? "Buongiorno" : "Good morning"
+        } else if hour >= 12 && hour < 18 {
+            salutation = isItalian ? "Buon pomeriggio" : "Good afternoon"
+        } else {
+            salutation = isItalian ? "Buonasera" : "Good evening"
+        }
+        return "\(salutation), \(name)"
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
                 VStack(spacing: 24) {
-                    Spacer(minLength: 0)
-                    PinHeader(title: "Bentornato in Spendy",
-                              subtitle: "Inserisci il PIN per accedere alle tue finanze.",
-                              showsProfileAvatar: true, user: authManager.currentUser)
-                    Spacer(minLength: 0)
-                    PinEntryPad(count: pin.count, error: showError,
+                    Spacer(minLength: 12)
+                    PinHeader(title: greetingTitle,
+                              subtitle: nil,
+                              showsProfileAvatar: true,
+                              user: authManager.currentUser,
+                              avatarSize: keyDiameter(in: geometry.size))
+                    Spacer(minLength: 8)
+                    PinEntryPad(count: pin.count,
+                                error: showError,
                                 circularDiameter: keyDiameter(in: geometry.size),
                                 biometricAction: supportsBiometrics ? { authManager.unlockWithBiometrics() } : nil,
-                                onDigit: addDigit, onDelete: {
+                                onDigit: addDigit,
+                                onDelete: {
                         if !pin.isEmpty { pin.removeLast() }
                         showError = false
                     })
@@ -27,10 +49,14 @@ struct LockView: View {
                     if authManager.isBiometricAuthenticationInProgress {
                         ProgressView("Autenticazione…")
                     }
+                    Spacer(minLength: 16)
                     Button("Hai dimenticato il PIN?") { showingLogout = true }
-                        .font(.subheadline).frame(minHeight: 44)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.spendySecondaryText)
+                        .frame(minHeight: 44)
                 }
-                .padding(24)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: geometry.size.height)
             }
@@ -40,6 +66,9 @@ struct LockView: View {
         .task {
             supportsBiometrics = authManager.canUseBiometrics()
             if supportsBiometrics { authManager.unlockWithBiometrics() }
+            if authManager.currentUser == nil {
+                await authManager.fetchUserProfile()
+            }
         }
         .confirmationDialog("Accedi di nuovo al tuo account", isPresented: $showingLogout,
                             titleVisibility: .visible) {
@@ -49,10 +78,8 @@ struct LockView: View {
         }
     }
 
-    // Size the keys from the safe-area viewport; scrolling handles short windows
-    // and accessibility text without shrinking touch targets.
     private func keyDiameter(in size: CGSize) -> CGFloat {
-        min(96, max(64, (size.width - 96) / 3), max(72, size.height * 0.12))
+        min(80, max(68, (size.width - 120) / 3))
     }
 
     private func addDigit(_ digit: String) {

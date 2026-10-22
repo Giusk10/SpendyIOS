@@ -23,6 +23,7 @@ class AuthManager: ObservableObject {
     private let kAccessToken = "accessToken"
     private let kRefreshToken = "refreshToken"
     private let kUserPIN = "userPIN"
+    private let kCachedUser = "cachedUser"
 
     private init() {
         checkInitialState()
@@ -32,6 +33,11 @@ class AuthManager: ObservableObject {
         // Cold Start Logic
         if getRefreshToken() != nil {
             // We have a session, but app was killed.
+            // Restore cached profile if available for seamless cold launch.
+            if let data = UserDefaults.standard.data(forKey: kCachedUser),
+               let user = try? JSONDecoder().decode(User.self, from: data) {
+                self.currentUser = user
+            }
             // Go to Locked state immediately.
             self.authState = hasPin() ? .locked : .pinSetup
         } else {
@@ -243,6 +249,9 @@ class AuthManager: ObservableObject {
                 guard sessionToken == getRefreshToken() else { return }
                 await MainActor.run {
                     self.currentUser = user
+                    if let encoded = try? JSONEncoder().encode(user) {
+                        UserDefaults.standard.set(encoded, forKey: self.kCachedUser)
+                    }
                 }
             }
         } catch {
@@ -388,6 +397,7 @@ class AuthManager: ObservableObject {
         // Delete PIN to force setup next time as requested
         deleteKeychain(account: kUserPIN)
 
+        UserDefaults.standard.removeObject(forKey: kCachedUser)
         currentUser = nil
         errorMessage = nil
         self.authState = .unauthenticated

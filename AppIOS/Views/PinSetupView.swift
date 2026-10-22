@@ -8,21 +8,39 @@ struct PinSetupView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 32) {
-                PinHeader(title: isConfirming ? "Conferma il PIN" : "Proteggi il tuo accesso",
-                          subtitle: isConfirming ? "Inserisci di nuovo le sei cifre." : "Crea un PIN a sei cifre.")
-                if let errorMessage { SpendyMessage(message: errorMessage) }
-                PinEntryPad(count: isConfirming ? confirmation.count : pin.count,
-                            error: false, onDigit: addDigit, onDelete: deleteDigit)
-                if isConfirming {
-                    Button("Scegli un altro PIN") { reset() }.frame(minHeight: 44)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 24) {
+                    Spacer(minLength: 12)
+                    PinHeader(title: isConfirming ? "Conferma il PIN" : "Proteggi il tuo accesso",
+                              subtitle: isConfirming ? "Inserisci di nuovo le sei cifre." : "Crea un PIN a sei cifre.",
+                              showsProfileAvatar: false)
+                    if let errorMessage { SpendyMessage(message: errorMessage) }
+                    Spacer(minLength: 8)
+                    PinEntryPad(count: isConfirming ? confirmation.count : pin.count,
+                                error: false,
+                                circularDiameter: keyDiameter(in: geometry.size),
+                                onDigit: addDigit,
+                                onDelete: deleteDigit)
+                    Spacer(minLength: 12)
+                    if isConfirming {
+                        Button("Scegli un altro PIN") { reset() }
+                            .font(.subheadline)
+                            .frame(minHeight: 44)
+                    }
                 }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: geometry.size.height)
             }
-            .padding(24).padding(.top, 24)
-            .frame(maxWidth: .infinity)
+            .scrollBounceBehavior(.basedOnSize)
         }
         .background(Color.spendyBackground)
+    }
+
+    private func keyDiameter(in size: CGSize) -> CGFloat {
+        min(80, max(68, (size.width - 120) / 3))
     }
 
     private func addDigit(_ digit: String) {

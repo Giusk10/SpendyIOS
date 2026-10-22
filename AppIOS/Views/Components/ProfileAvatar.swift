@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Shared with the profile so both surfaces use the same initials and typography.
+/// Shared with the profile and lock screens so both surfaces use the same initials and typography.
 struct ProfileAvatar: View {
     let user: User?
+    var size: CGFloat = 64
     var usesGlass = false
 
     var body: some View {
@@ -18,16 +19,16 @@ struct ProfileAvatar: View {
 
     private var avatar: some View {
         Group {
-            if let user {
+            if let user, !user.initials.isEmpty {
                 Text(user.initials)
             } else {
                 Image(systemName: "person.crop.circle")
             }
         }
-        .font(.title2.bold())
-        .foregroundStyle(Color.spendyPrimary)
+        .font(size >= 64 ? .title2.weight(.semibold) : .headline.weight(.semibold))
+        .foregroundStyle(usesGlass ? Color.spendyText : Color.spendyPrimary)
         .minimumScaleFactor(0.5)
         .lineLimit(1)
-        .frame(width: 64, height: 64)
+        .frame(width: size, height: size)
     }
 }
