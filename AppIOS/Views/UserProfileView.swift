@@ -19,11 +19,7 @@ struct UserProfileView: View {
                 if let user = authManager.currentUser {
                     Section {
                         HStack(spacing: 16) {
-                            Text(user.initials).font(.title2.bold())
-                                .foregroundStyle(Color.spendyPrimary)
-                                .frame(width: 64, height: 64)
-                                .background(Color.spendyPrimary.opacity(0.10), in: Circle())
-                                .accessibilityHidden(true)
+                            ProfileAvatar(user: user)
                             Text(user.fullName).font(.title3.bold())
                         }
                         .padding(.vertical, 8)
